@@ -20,6 +20,9 @@ claude mcp add-json twilio -s user "{\"command\":\"npx\",\"args\":[\"-y\",\"@yiy
 # Grep for github searching
 claude mcp add -s user --transport http grep https://mcp.grep.app
 
+# Playwright - Browser automation (container started automatically by launcher)
+claude mcp add -s user --transport http playwright http://host.docker.internal:8931/sse
+
 # === OPTIONAL MCP SERVERS (uncomment to enable) ===
 
 # Zen MCP - Multi-model code review/debugging with Gemini and other LLMs

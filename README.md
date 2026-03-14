@@ -286,6 +286,11 @@ Search real code examples on GitHub.
 
 **Value:** When documentation is missing, rapidly search across GitHub for working implementations to understand different APIs and syntaxes for unfamiliar tasks.
 
+#### Playwright MCP
+Browser automation for web testing, scraping, and interaction.
+
+**Value:** Claude can navigate websites, fill forms, take screenshots, and run end-to-end tests directly from the container. The Playwright MCP runs as a separate Docker container (`mcr.microsoft.com/playwright/mcp`) that is automatically started when you launch `claude-docker`.
+
 #### Twilio MCP
 SMS notifications when tasks complete - step away from your monitor.
 

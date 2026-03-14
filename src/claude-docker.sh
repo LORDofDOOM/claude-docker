@@ -277,6 +277,24 @@ else
     echo "No additional conda directories configured"
 fi
 
+# Ensure Playwright MCP container is running
+PLAYWRIGHT_CONTAINER="playwright-mcp"
+PLAYWRIGHT_PORT=8931
+
+if "$DOCKER" ps --format '{{.Names}}' | grep -q "^${PLAYWRIGHT_CONTAINER}$"; then
+    echo "✓ Playwright MCP container already running"
+else
+    # Remove stopped container with same name if it exists
+    "$DOCKER" rm -f "$PLAYWRIGHT_CONTAINER" 2>/dev/null || true
+    echo "Starting Playwright MCP container..."
+    "$DOCKER" run -d --rm --init --pull=always \
+        --name "$PLAYWRIGHT_CONTAINER" \
+        -p "${PLAYWRIGHT_PORT}:${PLAYWRIGHT_PORT}" \
+        mcr.microsoft.com/playwright/mcp \
+        --headless --port "$PLAYWRIGHT_PORT" --host 0.0.0.0
+    echo "✓ Playwright MCP container started on port $PLAYWRIGHT_PORT"
+fi
+
 # Run Claude Code in Docker
 echo "Starting Claude Code in Docker..."
 "$DOCKER" run -it --rm \
