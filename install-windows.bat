@@ -9,6 +9,9 @@ echo.
 REM Navigate to the .NET project directory
 cd /d "%~dp0src\windows\claude-docker-cli"
 
+REM Clean old packages
+if exist "%~dp0src\windows\claude-docker-cli\nupkg" del /q "%~dp0src\windows\claude-docker-cli\nupkg\*.nupkg"
+
 REM Build and pack
 echo Building and packing claude-docker-cli...
 dotnet pack -c Release -o "%~dp0src\windows\claude-docker-cli\nupkg"
@@ -22,18 +25,14 @@ if errorlevel 1 (
 echo.
 echo Installing as global tool...
 
-REM Try update first (already installed), fall back to fresh install
-dotnet tool update -g claude-docker-cli --add-source "%~dp0src\windows\claude-docker-cli\nupkg" --prerelease 2>nul
+REM Uninstall old version (if any), then install fresh
+dotnet tool uninstall -g claude-docker-cli 2>nul
+dotnet tool install -g claude-docker-cli --add-source "%~dp0src\windows\claude-docker-cli\nupkg" --prerelease
 if errorlevel 1 (
-    dotnet tool install -g claude-docker-cli --add-source "%~dp0src\windows\claude-docker-cli\nupkg" --prerelease
-    if errorlevel 1 (
-        echo.
-        echo [ERR] Tool installation failed.
-        echo      Try running: dotnet tool uninstall -g claude-docker-cli
-        echo      Then re-run this script.
-        pause
-        exit /b 1
-    )
+    echo.
+    echo [ERR] Tool installation failed.
+    pause
+    exit /b 1
 )
 
 REM Set CLAUDE_DOCKER_PROJECT so the tool can find the repo

@@ -96,6 +96,12 @@ claude-docker --cc-version 2.0.64   # Install specific Claude Code version
 | `--gpus` | Enable GPU access | `claude-docker --gpus all` |
 | `--cc-version` | Install specific Claude Code version (requires rebuild) | `claude-docker --rebuild --cc-version 2.0.64` |
 
+### Automatic Rebuilds
+
+The Docker image is automatically rebuilt when a new git commit is detected in the claude-docker repository. This means changes to `Dockerfile`, `mcp-servers.txt`, `.env`, or any other build file take effect after you commit and run `claude-docker` — no `--rebuild` flag needed.
+
+The current commit hash is stored in `~/.claude-docker/.build-hash` and compared on each launch.
+
 ### Environment Variable Defaults
 Set defaults in your `.env` file:
 ```bash

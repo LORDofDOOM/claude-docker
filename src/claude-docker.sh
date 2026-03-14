@@ -108,6 +108,18 @@ if [ "$FORCE_REBUILD" = true ]; then
     NEED_REBUILD=true
 fi
 
+# Auto-rebuild: compare git commit hash against last build
+BUILD_HASH_FILE="$CLAUDE_DOCKER_DIR/.build-hash"
+CURRENT_HASH=$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+if [ "$NEED_REBUILD" = false ]; then
+    PREVIOUS_HASH=$(cat "$BUILD_HASH_FILE" 2>/dev/null || echo "")
+    if [ "$CURRENT_HASH" != "$PREVIOUS_HASH" ]; then
+        echo "New commit detected ($PREVIOUS_HASH -> $CURRENT_HASH) — auto-rebuilding..."
+        NEED_REBUILD=true
+    fi
+fi
+
 # Warn if --no-cache is used without rebuild
 if [ -n "${NO_CACHE:-}" ] && [ "$NEED_REBUILD" = false ]; then
     echo "⚠️  Warning: --no-cache flag set but image already exists. Use --rebuild --no-cache to force rebuild without cache."
@@ -141,6 +153,9 @@ if [ "$NEED_REBUILD" = true ]; then
     
     # Clean up copied auth files
     rm -f "$PROJECT_ROOT/.claude.json"
+
+    # Save git hash so we can detect new commits
+    echo "$CURRENT_HASH" > "$BUILD_HASH_FILE"
 fi
 
 # Ensure the claude-home and ssh directories exist

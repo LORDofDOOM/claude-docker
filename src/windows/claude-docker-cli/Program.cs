@@ -128,6 +128,23 @@ if (forceRebuild)
     Console.WriteLine("Forcing rebuild of Claude Docker image...");
     needRebuild = true;
 }
+
+// Auto-rebuild: compare git commit hash against last build
+var buildHashFile = Path.Combine(claudeDockerDir, ".build-hash");
+var (_, gitHashOut) = RunCapture("git", $"-C \"{projectRoot}\" rev-parse --short HEAD");
+var currentHash = gitHashOut.Trim();
+if (string.IsNullOrEmpty(currentHash)) currentHash = "unknown";
+
+if (!needRebuild)
+{
+    var previousHash = File.Exists(buildHashFile) ? File.ReadAllText(buildHashFile).Trim() : "";
+    if (currentHash != previousHash)
+    {
+        Console.WriteLine($"New commit detected ({previousHash} -> {currentHash}) — auto-rebuilding...");
+        needRebuild = true;
+    }
+}
+
 if (noCache && !needRebuild)
 {
     Warn("--no-cache flag set but image already exists. Use --rebuild --no-cache to force rebuild without cache.");
@@ -184,6 +201,9 @@ if (needRebuild)
 
     // Clean up copied auth file
     try { File.Delete(buildClaudeJson); } catch { /* ignore */ }
+
+    // Save git hash so we can detect new commits
+    try { File.WriteAllText(buildHashFile, currentHash); } catch { /* ignore */ }
 }
 
 // ── Ensure directories ───────────────────────────────────────────
