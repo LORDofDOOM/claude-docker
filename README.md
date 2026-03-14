@@ -146,15 +146,16 @@ All configuration below is optional. The container works out-of-the-box without 
 
 **All environment variables are completely optional.** Only configure what you need:
 
-#### Twilio SMS Notifications
-Get phone notifications when long-running tasks complete:
+#### Telegram Notifications
+Get Telegram notifications when long-running tasks complete, or let Claude ask you questions mid-task:
 ```bash
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_FROM_NUMBER=+1234567890
-TWILIO_TO_NUMBER=+0987654321
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
 ```
-**Setup:** Create a free trial account at https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account
+**Setup:**
+1. Message [@BotFather](https://t.me/BotFather) on Telegram, send `/newbot`, follow prompts
+2. Send `/start` to your new bot
+3. Get your chat ID from `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
 
 #### Conda Integration
 Mount your host conda environments and packages into the container:
@@ -237,7 +238,7 @@ notepad "%USERPROFILE%\.claude-docker\claude-home\CLAUDE.md"
 - Task clarification protocols
 - Conda environment execution standards
 - Context.md maintenance requirements
-- SMS notification behaviors
+- Telegram notification behaviors
 
 These are NOT requirements of the Docker container - they're customizable prompt engineering. Change `CLAUDE.md` to match your workflow preferences.
 
@@ -297,10 +298,10 @@ Browser automation for web testing, scraping, and interaction.
 
 **Value:** Claude can navigate websites, fill forms, take screenshots, and run end-to-end tests directly from the container. The Playwright MCP runs as a separate Docker container (`mcr.microsoft.com/playwright/mcp`) that is automatically started when you launch `claude-docker`.
 
-#### Twilio MCP
-SMS notifications when tasks complete - step away from your monitor.
+#### Telegram MCP
+Telegram bot notifications and two-way communication.
 
-**Value:** Work on long-running tasks without staying at your computer. Get notified when Claude needs your attention.
+**Value:** Get notified when tasks complete, and let Claude ask you questions mid-task — all through Telegram. No more waiting at your monitor.
 
 ### Optional MCP Servers
 
@@ -333,8 +334,8 @@ claude mcp add -s user --transport http context7 https://mcp.context7.com/mcp --
 # Grep - GitHub code search (no API key needed)
 claude mcp add -s user --transport http grep https://mcp.grep.app
 
-# Twilio SMS - Send notifications (requires Twilio credentials in .env)
-claude mcp add-json twilio -s user '{"command":"npx","args":["-y","@yiyang.1i/sms-mcp-server"],"env":{...}}'
+# Telegram - Notifications and two-way chat (requires Telegram credentials in .env)
+claude mcp add-json telegram -s user '{"command":"npx","args":["-y","mcp-communicator-telegram"],"env":{...}}'
 ```
 
 Each line is exactly what you'd type in your terminal to run that MCP server. The installation script handles the rest.
@@ -347,7 +348,7 @@ Each line is exactly what you'd type in your terminal to run that MCP server. Th
 
 ### Core Capabilities
 - **Complete AI coding agent setup** - Claude Code in isolated Docker container
-- **Pre-configured MCP servers** - Advanced coding tools, documentation lookup, SMS notifications and easy set up to add more.
+- **Pre-configured MCP servers** - Advanced coding tools, documentation lookup, Telegram notifications and easy set up to add more.
 - **Persistent conversation history** - Resumes from where you left off with `--continue`, even after crashes
 - **Host machines conda envs** - No need to waste time re setting up conda environments, host machines conda dirs are mounted and ready to use by claude docker.
 - **Simple one-command setup** - Zero friction plug-and-play integration

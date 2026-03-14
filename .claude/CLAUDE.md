@@ -59,23 +59,14 @@ THESE RULES ARE ABSOLUTE AND APPLY AT ALL TIMES.
 
 ### 5. LOGGING & COMMUNICATION PROTOCOL
 - **SEND USER TEXT AS CHECKLIST ITEM**: ALWAYS add 'Send user text' as an explicit checklist item to assure the user the text will be sent.
-- **TWILIO SMS IS THE PRIMARY "CALL-BACK" MECHANISM**:
-    - **SEND A TEXT AT THE END OF EVERY CHECKLIST**: A checklist represents a significant task. A text signals that this task is complete and your attention is needed.
+- **TELEGRAM IS THE PRIMARY "CALL-BACK" MECHANISM**:
+    - **SEND A MESSAGE AT THE END OF EVERY CHECKLIST**: A checklist represents a significant task. A message signals that this task is complete and your attention is needed.
     - **WHEN TO SEND**:
         1.  **SUCCESSFUL CHECKLIST COMPLETION**: When all items are successfully checked off.
         2.  **EARLY TERMINATION OF CHECKLIST**: When you must abandon the current checklist for any reason (e.g., you are stuck, the plan is flawed).
-    - **MESSAGE CONTENT**: The text MUST contain a brief summary of the outcome (what was achieved or why termination occurred) so you are up-to-speed when you return.
-    - **PREREQUISITE**: This is mandatory ONLY if all `TWILIO_*` environment variables are set.
-    - **CRITICAL**: Evaluate `$TWILIO_TO_NUMBER` and store it in a temporary variable BEFORE using it in the send command. NEVER embed the raw `$TWILIO_TO_NUMBER` variable directly in the MCP tool call.
-    - **MESSAGE DELIVERY VERIFICATION**: After sending ANY SMS, ALWAYS verify delivery status using:
-        ```bash
-        curl -X GET "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Messages/[MESSAGE_SID].json" -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN"
-        ```
-        Check the "status" field in the response. If status is "failed", retry with progressively shorter messages:
-        1. First retry: "Task complete - [brief outcome]"
-        2. Second retry: "Task done - [status]"
-        3. Final retry: "Task complete"
-        Continue until a message has status "delivered" or "sent".
+    - **MESSAGE CONTENT**: The message MUST contain a brief summary of the outcome (what was achieved or why termination occurred) so you are up-to-speed when you return.
+    - **PREREQUISITE**: This is mandatory ONLY if `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables are set.
+    - **HOW TO SEND**: Use the Telegram MCP `notify_user` tool to send notifications. Use `ask_user` when you need a response from the user.
 
 ## Tool Usage
 

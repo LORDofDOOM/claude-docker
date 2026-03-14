@@ -80,7 +80,7 @@ if [ -f "$ENV_FILE" ]; then
     set +a
 else
     echo "⚠️  No .env file found at $ENV_FILE"
-    echo "   Twilio MCP features will be unavailable."
+    echo "   Telegram notifications will be unavailable."
     echo "   To enable: copy .env.example to .env in the claude-docker repository and add your credentials"
 fi
 

@@ -2,8 +2,8 @@
 set -euo pipefail
 trap 'echo "$0: line $LINENO: $BASH_COMMAND: exitcode $?"' ERR
 
-# ABOUTME: Startup script for claude-docker container with MCP server
-# ABOUTME: Loads twilio env vars, checks for .credentials.json, copies CLAUDE.md template if no claude.md in claude-docker/claude-home.
+# ABOUTME: Startup script for claude-docker container with MCP servers
+# ABOUTME: Loads telegram env vars, checks for .credentials.json, copies CLAUDE.md template if no claude.md in claude-docker/claude-home.
 # ABOUTME: Starts claude code with permissions bypass and continues from last session.
 # NOTE: Need to call claude-docker --rebuild to integrate changes.
 
@@ -15,11 +15,9 @@ if [ -f /app/.env ]; then
     source /app/.env 2>/dev/null || true
     set +a
     
-    # Export Twilio variables for runtime use
-    export TWILIO_ACCOUNT_SID
-    export TWILIO_AUTH_TOKEN
-    export TWILIO_FROM_NUMBER
-    export TWILIO_TO_NUMBER
+    # Export Telegram variables for runtime use
+    export TELEGRAM_BOT_TOKEN
+    export TELEGRAM_CHAT_ID
 else
     echo "WARNING: No .env file found in image."
 fi
@@ -50,11 +48,11 @@ else
     echo "  To reset to template, delete this file and restart"
 fi
 
-# Verify Twilio MCP configuration
-if [ -n "$TWILIO_ACCOUNT_SID" ] && [ -n "$TWILIO_AUTH_TOKEN" ]; then
-    echo "✓ Twilio MCP server configured - SMS notifications enabled"
+# Verify Telegram MCP configuration
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
+    echo "✓ Telegram MCP configured - notifications enabled"
 else
-    echo "No Twilio credentials found - SMS notifications disabled"
+    echo "No Telegram credentials found - notifications disabled"
 fi
 
 # # Export environment variables from settings.json

@@ -99,7 +99,7 @@ if (File.Exists(envFile))
 else
 {
     Warn("No .env file found at " + envFile);
-    Console.WriteLine("    Twilio MCP features will be unavailable.");
+    Console.WriteLine("    Telegram notifications will be unavailable.");
 }
 
 // ── Apply env-var defaults ───────────────────────────────────────

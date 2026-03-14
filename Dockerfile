@@ -1,5 +1,5 @@
-# ABOUTME: Docker image for Claude Code with Twilio MCP server
-# ABOUTME: Provides autonomous Claude Code environment with SMS notifications
+# ABOUTME: Docker image for Claude Code with pre-configured MCP servers
+# ABOUTME: Provides autonomous Claude Code environment with Telegram notifications
 
 FROM node:20.18.1-slim
 

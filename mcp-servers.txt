@@ -14,8 +14,8 @@ claude mcp add-json "serena" '{
 # Context7 - Up-to-date documentation and code examples from source
 claude mcp add -s user --transport http context7 https://mcp.context7.com/mcp --header "CONTEXT7_API_KEY: ${CONTEXT7_API_KEY}"
 
-# Twilio SMS - Send SMS messages (requires env vars)
-claude mcp add-json twilio -s user "{\"command\":\"npx\",\"args\":[\"-y\",\"@yiyang.1i/sms-mcp-server\"],\"env\":{\"ACCOUNT_SID\":\"${TWILIO_ACCOUNT_SID}\",\"AUTH_TOKEN\":\"${TWILIO_AUTH_TOKEN}\",\"FROM_NUMBER\":\"${TWILIO_FROM_NUMBER}\"}}"
+# Telegram - Send notifications and ask questions via Telegram bot (requires env vars)
+claude mcp add-json telegram -s user "{\"command\":\"npx\",\"args\":[\"-y\",\"mcp-communicator-telegram\"],\"env\":{\"TELEGRAM_TOKEN\":\"${TELEGRAM_BOT_TOKEN}\",\"CHAT_ID\":\"${TELEGRAM_CHAT_ID}\"}}"
 
 # Grep for github searching
 claude mcp add -s user --transport http grep https://mcp.grep.app
