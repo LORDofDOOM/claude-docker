@@ -16,9 +16,11 @@ Containerized drop-in replacement for Claude Code - run worry-free in `--dangero
 
 ## Quick Start
 
+### Linux / macOS
+
 ```bash
 # 1. Clone and enter directory
-git clone https://github.com/VishalJ99/claude-docker.git
+git clone https://github.com/LORDofDOOM/claude-docker.git
 cd claude-docker
 
 # 2. Setup environment (completely optional - skip if you don't need custom config)
@@ -33,11 +35,38 @@ cd ~/your-project
 claude-docker
 ```
 
-**That's it!** Claude runs in an isolated Docker container with access to your project directory.
-
 Installer notes:
 - Alias is added to your detected shell RC file (`.bashrc`, `.bash_profile`, `.zshrc`, or `.profile`)
 - Persistent data defaults to `~/.claude-docker`; override with `CLAUDE_DOCKER_HOME=/path/to/writable/dir`
+
+### Windows
+
+```powershell
+# 1. Clone and enter directory
+git clone https://github.com/LORDofDOOM/claude-docker.git
+cd claude-docker
+
+# 2. Setup environment (completely optional)
+copy .env.example .env
+notepad .env  # Add any optional configs
+
+# 3. Install as global .NET tool (one-time)
+install-windows.bat
+
+# 4. Open a NEW terminal, then run from any project
+cd C:\your-project
+claude-docker
+```
+
+**Requirements:** [.NET SDK 10+](https://dotnet.microsoft.com/download) and [Docker Desktop](https://www.docker.com/products/docker-desktop/) with WSL2 backend.
+
+Installer notes:
+- Installs `claude-docker` as a .NET global tool (`~/.dotnet/tools`, already in PATH)
+- Sets `CLAUDE_DOCKER_PROJECT` environment variable to locate the repo
+- Persistent data defaults to `%USERPROFILE%\.claude-docker`; override with `CLAUDE_DOCKER_HOME`
+- Conda host-mount is not supported on Windows (Windows paths are incompatible with Linux container paths)
+
+**That's it!** Claude runs in an isolated Docker container with access to your project directory.
 
 ---
 
@@ -76,7 +105,11 @@ DOCKER_GPU_ACCESS=all           # Default GPU access
 
 Set this in your shell if you want to override the default persistent directory:
 ```bash
+# Linux / macOS
 export CLAUDE_DOCKER_HOME=/path/to/writable/dir
+
+# Windows (PowerShell)
+setx CLAUDE_DOCKER_HOME "C:\path\to\writable\dir"
 ```
 
 ### Examples
@@ -150,6 +183,7 @@ Git configuration (global username and email) is automatically loaded from your 
 #### SSH Keys for Git Push
 Claude Docker uses dedicated SSH keys (separate from your personal keys for security):
 
+**Linux / macOS:**
 ```bash
 # 1. Create directory and generate key
 CLAUDE_DOCKER_DIR="${CLAUDE_DOCKER_HOME:-$HOME/.claude-docker}"
@@ -164,13 +198,32 @@ cat "$CLAUDE_DOCKER_DIR/ssh/id_rsa.pub"
 ssh -T git@github.com -i "$CLAUDE_DOCKER_DIR/ssh/id_rsa"
 ```
 
+**Windows (PowerShell):**
+```powershell
+# 1. Create directory and generate key
+$sshDir = "$env:USERPROFILE\.claude-docker\ssh"
+mkdir $sshDir -Force
+ssh-keygen -t rsa -b 4096 -f "$sshDir\id_rsa" -N '""'
+
+# 2. Add public key to GitHub
+type "$sshDir\id_rsa.pub"
+# Copy output and add to: GitHub → Settings → SSH and GPG keys → New SSH key
+
+# 3. Test connection
+ssh -T git@github.com -i "$sshDir\id_rsa"
+```
+
 ### Custom Agent Behavior
 
 After installation, customize Claude's behavior by editing files in `${CLAUDE_DOCKER_HOME:-~/.claude-docker}/claude-home/`:
 
 #### CLAUDE.md (Prompt Engineering)
 ```bash
+# Linux / macOS
 nano "${CLAUDE_DOCKER_HOME:-$HOME/.claude-docker}/claude-home/CLAUDE.md"
+
+# Windows
+notepad "%USERPROFILE%\.claude-docker\claude-home\CLAUDE.md"
 ```
 
 **Important:** The default `CLAUDE.md` includes the author's opinionated workflow preferences:
@@ -184,7 +237,11 @@ These are NOT requirements of the Docker container - they're customizable prompt
 
 #### settings.json (Claude Code Settings)
 ```bash
+# Linux / macOS
 nano "${CLAUDE_DOCKER_HOME:-$HOME/.claude-docker}/claude-home/settings.json"
+
+# Windows
+notepad "%USERPROFILE%\.claude-docker\claude-home\settings.json"
 ```
 
 Configure Claude Code settings including:
@@ -317,7 +374,7 @@ nano "${CLAUDE_DOCKER_HOME:-$HOME/.claude-docker}/claude-home/CLAUDE.md"
 
 
 ## Created By
-- **Repository**: https://github.com/VishalJ99/claude-docker
+- **Repository**: https://github.com/LORDofDOOM/claude-docker
 - **Author**: Vishal J (@VishalJ99)
 
 ---

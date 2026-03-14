@@ -63,7 +63,6 @@ RUN mkdir -p /app/.claude /home/claude-user/.claude
 
 # Copy startup script
 COPY src/startup.sh /app/
-RUN chmod +x /app/startup.sh
 
 # Copy .claude directory for runtime use
 COPY .claude /app/.claude
@@ -82,7 +81,10 @@ COPY .claude.json /tmp/.claude.json
 # Copy MCP server configuration files (as root)
 COPY mcp-servers.txt /app/
 COPY install-mcp-servers.sh /app/
-RUN chmod +x /app/install-mcp-servers.sh
+
+# Fix Windows CRLF line endings and set executable bits on all shell scripts/text files
+RUN sed -i 's/\r$//' /app/startup.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/.env && \
+    chmod +x /app/startup.sh /app/install-mcp-servers.sh
 
 # Move auth files to proper location before switching user
 RUN cp /tmp/.claude.json /home/claude-user/.claude.json && \

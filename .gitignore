@@ -39,3 +39,9 @@ commit_diff_summary.txt
 
 # Local Claude settings
 .claude/settings.local.json
+
+# .NET build artifacts
+bin/
+obj/
+nupkg/
+*.nupkg
