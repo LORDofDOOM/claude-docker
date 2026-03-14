@@ -15,7 +15,7 @@ claude mcp add-json "serena" '{
 claude mcp add -s user --transport http context7 https://mcp.context7.com/mcp --header "CONTEXT7_API_KEY: ${CONTEXT7_API_KEY}"
 
 # Telegram - Send notifications and ask questions via Telegram bot (requires env vars)
-claude mcp add-json telegram -s user "{\"command\":\"npx\",\"args\":[\"-y\",\"mcp-communicator-telegram\"],\"env\":{\"TELEGRAM_TOKEN\":\"${TELEGRAM_BOT_TOKEN}\",\"CHAT_ID\":\"${TELEGRAM_CHAT_ID}\"}}"
+claude mcp add-json telegram -s user "{\"command\":\"mcptelegram\",\"args\":[],\"env\":{\"TELEGRAM_TOKEN\":\"${TELEGRAM_BOT_TOKEN}\",\"CHAT_ID\":\"${TELEGRAM_CHAT_ID}\"}}"
 
 # Grep for github searching
 claude mcp add -s user --transport http grep https://mcp.grep.app

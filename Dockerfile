@@ -55,6 +55,9 @@ RUN if [ -n "$CC_VERSION" ]; then \
         npm install -g @anthropic-ai/claude-code; \
     fi
 
+# Pre-install MCP server packages that need npx (avoids permission issues at runtime)
+RUN npm install -g mcp-communicator-telegram
+
 # Ensure npm global bin is in PATH
 ENV PATH="/usr/local/bin:${PATH}"
 

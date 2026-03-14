@@ -57,16 +57,22 @@ THESE RULES ARE ABSOLUTE AND APPLY AT ALL TIMES.
 - **STRUCTURE**: Use clear headings, bullet points, and code examples where helpful
 - **NO EXCEPTIONS**: This file is CRITICAL for maintaining agent productivity and MUST be kept current
 
-### 5. LOGGING & COMMUNICATION PROTOCOL
-- **SEND USER TEXT AS CHECKLIST ITEM**: ALWAYS add 'Send user text' as an explicit checklist item to assure the user the text will be sent.
-- **TELEGRAM IS THE PRIMARY "CALL-BACK" MECHANISM**:
-    - **SEND A MESSAGE AT THE END OF EVERY CHECKLIST**: A checklist represents a significant task. A message signals that this task is complete and your attention is needed.
-    - **WHEN TO SEND**:
-        1.  **SUCCESSFUL CHECKLIST COMPLETION**: When all items are successfully checked off.
-        2.  **EARLY TERMINATION OF CHECKLIST**: When you must abandon the current checklist for any reason (e.g., you are stuck, the plan is flawed).
-    - **MESSAGE CONTENT**: The message MUST contain a brief summary of the outcome (what was achieved or why termination occurred) so you are up-to-speed when you return.
-    - **PREREQUISITE**: This is mandatory ONLY if `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables are set.
-    - **HOW TO SEND**: Use the Telegram MCP `notify_user` tool to send notifications. Use `ask_user` when you need a response from the user.
+### 5. TELEGRAM NOTIFICATION PROTOCOL
+- **ALWAYS SEND A TELEGRAM MESSAGE** when:
+    1. **TASK COMPLETE**: You finished what the user asked for.
+    2. **BLOCKED / NEED INPUT**: You are stuck, hit an error, or need a decision from the user.
+    3. **LONG-RUNNING TASK MILESTONE**: A significant step is done and another is starting.
+- **MESSAGE FORMAT**: Always prefix with the **project folder name** so the user knows which session sent it:
+    ```
+    [ProjectName] Task complete: implemented user authentication
+    [ProjectName] Blocked: database migration failed, need guidance
+    ```
+    Get the project name from the current working directory basename.
+- **HOW TO SEND**:
+    - Use `notify_user` for one-way status updates (task done, milestone reached).
+    - Use `ask_user` when you need a response before you can continue. This will wait for the user to reply via Telegram.
+- **MULTI-SESSION AWARENESS**: Multiple claude-docker sessions may share the same Telegram bot. The project name prefix is CRITICAL so the user can tell which session is talking.
+- **DO NOT SKIP**: If the Telegram MCP is available, ALWAYS send notifications. Do not wait for the user to ask.
 
 ## Tool Usage
 
