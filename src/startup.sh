@@ -69,6 +69,19 @@ fi
 #     done < <(sed 's://.*$::g' "$HOME/.claude/settings.json" | jq -r '.env // {} | to_entries | .[] | "\(.key)=\(.value)"' 2>/dev/null)
 # fi
 
+# Auto-trust /workspace so Claude doesn't prompt on first run
+python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude.json')
+try:
+    with open(f) as fh: d = json.load(fh)
+except: d = {}
+p = d.setdefault('projects', {})
+w = p.setdefault('/workspace', {})
+w['hasTrustDialogAccepted'] = True
+with open(f, 'w') as fh: json.dump(d, fh)
+" 2>/dev/null || true
+
 # Start Claude Code with permissions bypass
 echo "Starting Claude Code..."
 exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
