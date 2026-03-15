@@ -332,36 +332,6 @@ runArgs.AddRange(["--name", containerName]);
 runArgs.Add("claude-docker:latest");
 runArgs.AddRange(extraArgs);
 
-// ── Ensure Playwright MCP container is running ───────────────────
-const string playwrightContainer = "playwright-mcp";
-const string playwrightPort = "8931";
-
-var (psExit, psOut) = RunCapture(dockerCmd, "ps --format {{.Names}}");
-if (psExit == 0 && psOut.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-        .Any(n => n.Trim() == playwrightContainer))
-{
-    Info("Playwright MCP container already running");
-}
-else
-{
-    // Remove stopped container with same name if it exists
-    RunCapture(dockerCmd, $"rm -f {playwrightContainer}");
-    Console.WriteLine("Starting Playwright MCP container...");
-    var pwArgs = new List<string>
-    {
-        "run", "-d", "--rm", "--init", "--pull=always",
-        "--name", playwrightContainer,
-        "-p", $"{playwrightPort}:{playwrightPort}",
-        "mcr.microsoft.com/playwright/mcp",
-        "--headless", "--port", playwrightPort, "--host", "0.0.0.0"
-    };
-    var pwExit = RunPassthrough(dockerCmd, pwArgs);
-    if (pwExit == 0)
-        Info($"Playwright MCP container started on port {playwrightPort}");
-    else
-        Warn("Failed to start Playwright MCP container (continuing without it)");
-}
-
 // ── Run ──────────────────────────────────────────────────────────
 Console.WriteLine("Starting Claude Code in Docker...");
 var exitCode = RunPassthrough(dockerCmd, runArgs);

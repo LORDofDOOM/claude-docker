@@ -20,8 +20,8 @@ claude mcp add-json telegram -s user "{\"command\":\"mcptelegram\",\"args\":[],\
 # Grep for github searching
 claude mcp add -s user --transport http grep https://mcp.grep.app
 
-# Playwright - Browser automation (container started automatically by launcher)
-claude mcp add -s user --transport http playwright http://host.docker.internal:8931/sse
+# Playwright - Browser automation (runs inside container via stdio)
+claude mcp add-json playwright -s user '{"command":"npx","args":["@playwright/mcp","--headless"]}'
 
 # === OPTIONAL MCP SERVERS (uncomment to enable) ===
 

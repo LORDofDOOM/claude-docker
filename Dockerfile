@@ -55,8 +55,10 @@ RUN if [ -n "$CC_VERSION" ]; then \
         npm install -g @anthropic-ai/claude-code; \
     fi
 
-# Pre-install MCP server packages that need npx (avoids permission issues at runtime)
-RUN npm install -g mcp-communicator-telegram
+# Pre-install MCP server packages globally (avoids permission issues at runtime)
+RUN npm install -g mcp-communicator-telegram @playwright/mcp
+# Install Playwright browser (chromium only to save space)
+RUN npx playwright install --with-deps chromium
 
 # Ensure npm global bin is in PATH
 ENV PATH="/usr/local/bin:${PATH}"
