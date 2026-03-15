@@ -147,7 +147,7 @@ All configuration below is optional. The container works out-of-the-box without 
 **All environment variables are completely optional.** Only configure what you need:
 
 #### Telegram Notifications
-Get Telegram notifications when long-running tasks complete, or let Claude ask you questions mid-task:
+Get Telegram notifications when Claude completes tasks, hits errors, or needs your input — powered by the [mcp-communicator-telegram](https://github.com/qpd-v/mcp-communicator-telegram) MCP server.
 ```bash
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
@@ -156,6 +156,22 @@ TELEGRAM_CHAT_ID=your_telegram_chat_id
 1. Message [@BotFather](https://t.me/BotFather) on Telegram, send `/newbot`, follow prompts
 2. Send `/start` to your new bot
 3. Get your chat ID from `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+
+**How it works:**
+- Telegram is an MCP tool (`notify_user` / `ask_user`), not a background service. Claude decides when to use it based on the `CLAUDE.md` notification protocol.
+- `notify_user` — sends one-way status updates (task complete, milestone reached)
+- `ask_user` — sends a question and waits for your reply via Telegram
+- Claude will **not** send messages at the idle prompt. It sends notifications when it finishes a task, encounters an error, or needs your input.
+
+**Important:** The notification protocol is defined in the `CLAUDE.md` template. If you customized your persistent `CLAUDE.md` before the Telegram protocol was added, you need to reset it:
+```bash
+# Linux / macOS
+rm "${CLAUDE_DOCKER_HOME:-$HOME/.claude-docker}/claude-home/CLAUDE.md"
+
+# Windows
+del "%USERPROFILE%\.claude-docker\claude-home\CLAUDE.md"
+```
+Then rebuild with `claude-docker --rebuild` to copy the fresh template.
 
 #### Conda Integration
 Mount your host conda environments and packages into the container:
@@ -299,9 +315,9 @@ Browser automation for web testing, scraping, and interaction.
 **Value:** Claude can navigate websites, fill forms, take screenshots, and run end-to-end tests directly from the container. The Playwright MCP runs as a separate Docker container (`mcr.microsoft.com/playwright/mcp`) that is automatically started when you launch `claude-docker`.
 
 #### Telegram MCP
-Telegram bot notifications and two-way communication.
+Telegram bot notifications and two-way communication via [mcp-communicator-telegram](https://github.com/qpd-v/mcp-communicator-telegram).
 
-**Value:** Get notified when tasks complete, and let Claude ask you questions mid-task — all through Telegram. No more waiting at your monitor.
+**Value:** Step away from your terminal. Claude sends you Telegram messages when tasks finish or when it needs input. You can reply via Telegram using `ask_user`, and Claude continues working. Notifications are driven by `CLAUDE.md` instructions — Claude uses the tools automatically when it completes work, hits errors, or reaches milestones.
 
 ### Optional MCP Servers
 
