@@ -123,6 +123,6 @@ else
     fi
 fi
 
-echo -e "${CYAN}[$MODEL]${RESET}${PLAN_STR} 📁 ${DIR##*/}$BRANCH"
+echo -e "${CYAN}[$MODEL]${RESET}${PLAN_STR} | 📁 ${DIR##*/}${BRANCH}"
 COST_FMT=$(printf '$%.2f' "$COST")
 echo -e "${BAR_COLOR}${BAR}${RESET} ${PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s${USAGE_LINE}"
