@@ -124,6 +124,8 @@ ENV PATH="/home/claude-user/.claude/local/bin:/home/claude-user/.local/bin:/home
 # Install .NET MCP tools if enabled and dotnet SDK is available
 ARG ENABLE_DOTNET_MCP="false"
 RUN if [ "$ENABLE_DOTNET_MCP" = "true" ] && command -v dotnet >/dev/null 2>&1; then \
+        echo "Installing older .NET runtimes for MCP tool compatibility..." && \
+        sudo apt-get update && sudo apt-get install -y dotnet-runtime-8.0 dotnet-runtime-9.0 && sudo rm -rf /var/lib/apt/lists/* && \
         echo "Installing .NET MCP server tools..." && \
         dotnet tool install --global NuGet.Mcp.Server && \
         dotnet tool install --global DimonSmart.NugetMcpServer && \

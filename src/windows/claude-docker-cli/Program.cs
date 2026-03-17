@@ -188,6 +188,13 @@ if (needRebuild)
         buildArgs.AddRange(["--build-arg", $"CC_VERSION={ccVersion}"]);
     }
 
+    if (envVars.TryGetValue("ENABLE_DOTNET_MCP", out var dotnetMcp)
+        && dotnetMcp.Equals("true", StringComparison.OrdinalIgnoreCase))
+    {
+        Info("Building with .NET MCP servers (NuGet, C# LSP, type metadata)");
+        buildArgs.AddRange(["--build-arg", "ENABLE_DOTNET_MCP=true"]);
+    }
+
     buildArgs.AddRange(["-t", "claude-docker:latest", projectRoot]);
 
     Console.WriteLine($"Running: {dockerCmd} {string.Join(' ', buildArgs)}");

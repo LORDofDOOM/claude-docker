@@ -76,4 +76,4 @@ Windows Registry Editor Version 5.00
   30,00,00,00
 
 [HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\06dockerrebuild\command]
-@="cmd.exe /s /k \"cd /d \"%V\" && claude-docker --rebuild\""
+@="cmd.exe /s /k \"cd /d \"%V\" && claude-docker --rebuild --no-cache\""
