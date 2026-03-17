@@ -104,6 +104,11 @@ fi
 # Mark workspace as safe for git (ownership differs due to Docker volume mount)
 git config --global --add safe.directory "$(pwd)"
 
+# Fix ownership of mounted workspace so claude-user can access all files
+# (safe: on Docker Desktop this doesn't affect host; on Linux UIDs already match)
+# Runs in background to avoid delaying startup on large workspaces
+sudo chown -R claude-user "$(pwd)" &
+
 # Configure git credential helper if host credentials were passed in
 if [ -n "${GIT_CREDENTIAL_TOKEN:-}" ]; then
     # Create a simple credential helper script that returns the host's credentials
