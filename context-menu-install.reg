@@ -1,45 +1,79 @@
 Windows Registry Editor Version 5.00
 
-; Claude Docker - Right-click on a folder or folder background to launch claude-docker
+; Claude - Right-click on a folder or folder background to launch Claude (native or Docker)
 ; Icon resolves via %CLAUDE_DOCKER_PROJECT%\claude.ico (set by install-windows.bat)
+; Docker icon resolves via %ProgramFiles%\Docker\Docker\Docker Desktop.exe
 
-[HKEY_CLASSES_ROOT\Directory\shell\ClaudeDocker]
+; ── Top-level cascaded menu (folder right-click) ──────────────────
+[HKEY_CLASSES_ROOT\Directory\shell\Claude]
+"MUIVerb"="Claude"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,4b,00,\
+  45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,00,\
+  63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+"ExtendedSubCommandsKey"="Directory\\ContextMenus\\MenuClaude"
+
+; ── Top-level cascaded menu (folder background right-click) ───────
+[HKEY_CLASSES_ROOT\Directory\background\shell\Claude]
+"MUIVerb"="Claude"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,4b,00,\
+  45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,00,\
+  63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+"ExtendedSubCommandsKey"="Directory\\ContextMenus\\MenuClaude"
+
+; ── Native Claude entries ─────────────────────────────────────────
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\01claude]
+"MUIVerb"="Claude"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,4b,00,\
+  45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,00,\
+  63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\01claude\command]
+@="cmd.exe /s /k \"cd /d \"%V\" && claude\""
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\02claudecontinue]
+"MUIVerb"="Claude (Continue)"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,4b,00,\
+  45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,00,\
+  63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\02claudecontinue\command]
+@="cmd.exe /s /k \"cd /d \"%V\" && claude --continue\""
+
+; ── Separator ─────────────────────────────────────────────────────
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\03sep]
+"CommandFlags"=dword:00000020
+"MUIVerb"=""
+
+; ── Docker entries ────────────────────────────────────────────────
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\04docker]
 "MUIVerb"="Claude Docker"
-"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
-  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
-  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
-"ExtendedSubCommandsKey"="Directory\\ContextMenus\\MenuClaudeDocker"
+"Icon"=hex(2):25,00,50,00,72,00,6f,00,67,00,72,00,61,00,6d,00,46,00,69,00,6c,00,65,00,\
+  73,00,25,00,5c,00,44,00,6f,00,63,00,6b,00,65,00,72,00,5c,00,44,00,6f,00,\
+  63,00,6b,00,65,00,72,00,5c,00,44,00,6f,00,63,00,6b,00,65,00,72,00,20,00,\
+  44,00,65,00,73,00,6b,00,74,00,6f,00,70,00,2e,00,65,00,78,00,65,00,2c,00,\
+  30,00,00,00
 
-[HKEY_CLASSES_ROOT\Directory\background\shell\ClaudeDocker]
-"MUIVerb"="Claude Docker"
-"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
-  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
-  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
-"ExtendedSubCommandsKey"="Directory\\ContextMenus\\MenuClaudeDocker"
-
-[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\01open]
-"MUIVerb"="Claude Docker"
-"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
-  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
-  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
-
-[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\01open\command]
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\04docker\command]
 @="cmd.exe /s /k \"cd /d \"%V\" && claude-docker\""
 
-[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\02continue]
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\05dockercontinue]
 "MUIVerb"="Claude Docker (Continue)"
-"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
-  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
-  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+"Icon"=hex(2):25,00,50,00,72,00,6f,00,67,00,72,00,61,00,6d,00,46,00,69,00,6c,00,65,00,\
+  73,00,25,00,5c,00,44,00,6f,00,63,00,6b,00,65,00,72,00,5c,00,44,00,6f,00,\
+  63,00,6b,00,65,00,72,00,5c,00,44,00,6f,00,63,00,6b,00,65,00,72,00,20,00,\
+  44,00,65,00,73,00,6b,00,74,00,6f,00,70,00,2e,00,65,00,78,00,65,00,2c,00,\
+  30,00,00,00
 
-[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\02continue\command]
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\05dockercontinue\command]
 @="cmd.exe /s /k \"cd /d \"%V\" && claude-docker --continue\""
 
-[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\03rebuild]
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\06dockerrebuild]
 "MUIVerb"="Claude Docker (Rebuild)"
-"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
-  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
-  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+"Icon"=hex(2):25,00,50,00,72,00,6f,00,67,00,72,00,61,00,6d,00,46,00,69,00,6c,00,65,00,\
+  73,00,25,00,5c,00,44,00,6f,00,63,00,6b,00,65,00,72,00,5c,00,44,00,6f,00,\
+  63,00,6b,00,65,00,72,00,5c,00,44,00,6f,00,63,00,6b,00,65,00,72,00,20,00,\
+  44,00,65,00,73,00,6b,00,74,00,6f,00,70,00,2e,00,65,00,78,00,65,00,2c,00,\
+  30,00,00,00
 
-[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\03rebuild\command]
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaude\shell\06dockerrebuild\command]
 @="cmd.exe /s /k \"cd /d \"%V\" && claude-docker --rebuild\""
