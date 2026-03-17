@@ -321,6 +321,30 @@ else
 
 runArgs.AddRange(["-v", $"{sshDir}:/home/claude-user/.ssh:rw"]);
 
+// Extra directory mounts (append :ro for read-only)
+if (envVars.TryGetValue("EXTRA_MOUNT_DIRS", out var extraDirs) && !string.IsNullOrEmpty(extraDirs))
+{
+    foreach (var entry in extraDirs.Split(';', StringSplitOptions.RemoveEmptyEntries))
+    {
+        var trimmed = entry.Trim();
+        if (string.IsNullOrEmpty(trimmed)) continue;
+
+        var readOnly = trimmed.EndsWith(":ro", StringComparison.OrdinalIgnoreCase);
+        var dirPath = readOnly ? trimmed[..^3] : trimmed;
+        var mode = readOnly ? "ro" : "rw";
+
+        if (!Directory.Exists(dirPath))
+        {
+            Warn($"Extra mount dir not found, skipping: {dirPath}");
+            continue;
+        }
+        var mountName = Path.GetFileName(dirPath.TrimEnd('\\', '/'));
+        var containerPath = $"/mnt/{mountName}";
+        Info($"Mounting extra dir ({mode}): {dirPath} → {containerPath}");
+        runArgs.AddRange(["-v", $"{dirPath}:{containerPath}:{mode}"]);
+    }
+}
+
 // Conda mounts
 if (envVars.TryGetValue("CONDA_PREFIX", out var condaPrefix) && !string.IsNullOrEmpty(condaPrefix))
 {

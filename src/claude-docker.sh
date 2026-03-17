@@ -249,6 +249,29 @@ else
     echo "No conda installation configured"
 fi
 
+# Mount extra directories if specified (semicolon-separated, append :ro for read-only)
+if [ -n "${EXTRA_MOUNT_DIRS:-}" ]; then
+    IFS=';' read -ra EXTRA_DIRS <<< "$EXTRA_MOUNT_DIRS"
+    for entry in "${EXTRA_DIRS[@]}"; do
+        entry="$(echo "$entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [ -z "$entry" ] && continue
+        MODE="rw"
+        dir="$entry"
+        if echo "$entry" | grep -qi ':ro$'; then
+            MODE="ro"
+            dir="${entry%:ro}"
+            dir="${dir%:RO}"
+        fi
+        if [ -d "$dir" ]; then
+            MOUNT_NAME="$(basename "$dir")"
+            echo "✓ Mounting extra dir ($MODE): $dir → /mnt/$MOUNT_NAME"
+            MOUNT_ARGS="$MOUNT_ARGS -v $dir:/mnt/$MOUNT_NAME:$MODE"
+        else
+            echo "⚠️  Extra mount dir not found, skipping: $dir"
+        fi
+    done
+fi
+
 # Mount additional conda directories if specified
 if [ -n "${CONDA_EXTRA_DIRS:-}" ]; then
     echo "✓ Mounting additional conda directories..."

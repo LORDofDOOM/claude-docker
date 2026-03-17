@@ -194,6 +194,24 @@ When enabled, `--continue` works across both — start a task with `claude-docke
 
 **Note:** Each project directory gets its own session history regardless of this setting. Running `claude-docker` in `D:\ProjectA` and `D:\ProjectB` will never share sessions with each other.
 
+#### Extra Directory Mounts
+Mount additional host directories into the container for Claude to access. Useful for shared libraries, reference projects, or source code that lives outside the current project folder.
+
+```bash
+# Semicolon-separated list of directories
+# Append :ro for read-only access
+EXTRA_MOUNT_DIRS=D:\Projects\SharedLib:ro;D:\OtherProject
+```
+
+Directories are mounted under `/mnt/` using the folder name:
+- `D:\Projects\SharedLib` → `/mnt/SharedLib` (read-only)
+- `D:\OtherProject` → `/mnt/OtherProject` (read-write)
+
+Linux example:
+```bash
+EXTRA_MOUNT_DIRS=/home/user/shared-code:ro;/home/user/other-project
+```
+
 #### Conda Integration
 Mount your host conda environments and packages into the container:
 ```bash
