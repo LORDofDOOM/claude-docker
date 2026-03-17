@@ -297,6 +297,14 @@ if (!string.IsNullOrEmpty(gpuAccess))
 
 runArgs.Add("--add-host=host.docker.internal:host-gateway");
 
+// Network mode: use host networking if specified (gives full access to host ports)
+if (envVars.TryGetValue("DOCKER_NETWORK_MODE", out var networkMode) && !string.IsNullOrEmpty(networkMode))
+{
+    Info($"Using network mode: {networkMode}");
+    runArgs.AddRange(["--network", networkMode]);
+}
+
+
 // Use project-specific workspace path so each project gets its own session history
 var projectName = Path.GetFileName(currentDir) ?? "project";
 var workspacePath = $"/workspace/{projectName}";

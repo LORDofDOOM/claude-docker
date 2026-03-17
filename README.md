@@ -212,6 +212,22 @@ Linux example:
 EXTRA_MOUNT_DIRS=/home/user/shared-code:ro;/home/user/other-project
 ```
 
+#### Host Network Access
+By default, the container can reach services running on your host machine via `host.docker.internal`. For example, if you have a dev server on port 9000, use `http://host.docker.internal:9000` from inside the container (e.g. with Playwright).
+
+If you need full host network access (so `localhost` inside the container maps directly to the host), enable host network mode:
+
+```bash
+DOCKER_NETWORK_MODE=host
+```
+
+| Mode | How to reach host port 9000 | Use case |
+|---|---|---|
+| Default (bridge) | `http://host.docker.internal:9000` | Works out of the box, no config needed |
+| `DOCKER_NETWORK_MODE=host` | `http://localhost:9000` | Full host network, useful for Playwright testing local apps |
+
+**Note:** `--network host` disables Docker's network isolation. The container shares the host's network stack entirely. Only use this when you need direct localhost access.
+
 #### Conda Integration
 Mount your host conda environments and packages into the container:
 ```bash

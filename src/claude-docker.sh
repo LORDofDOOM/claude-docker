@@ -264,6 +264,12 @@ fi
 # Enable host.docker.internal DNS so container can reach host services (e.g. vLLM on port 8000)
 DOCKER_OPTS="$DOCKER_OPTS --add-host=host.docker.internal:host-gateway"
 
+# Network mode: use host networking if specified (gives full access to host ports)
+if [ -n "${DOCKER_NETWORK_MODE:-}" ]; then
+    echo "✓ Using network mode: $DOCKER_NETWORK_MODE"
+    DOCKER_OPTS="$DOCKER_OPTS --network $DOCKER_NETWORK_MODE"
+fi
+
 # Mount conda installation if specified
 if [ -n "${CONDA_PREFIX:-}" ] && [ -d "$CONDA_PREFIX" ]; then
     echo "✓ Mounting conda installation from $CONDA_PREFIX"
