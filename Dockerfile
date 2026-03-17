@@ -1,7 +1,7 @@
 # ABOUTME: Docker image for Claude Code with pre-configured MCP servers
 # ABOUTME: Provides autonomous Claude Code environment with Telegram notifications
 
-FROM node:20.18.1-slim
+FROM node:trixie-slim
 
 # delete default node user if exists
 # we will likely need his UID
@@ -18,11 +18,19 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     sudo \
     gettext-base \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Install additional system packages if specified
 ARG SYSTEM_PACKAGES=""
 RUN if [ -n "$SYSTEM_PACKAGES" ]; then \
+    # Add Microsoft package repo if any dotnet packages are requested (Debian 13/Trixie)
+    if echo "$SYSTEM_PACKAGES" | grep -q "dotnet"; then \
+        echo "Adding Microsoft package repository for .NET..." && \
+        wget https://packages.microsoft.com/config/debian/13/packages-microsoft-prod.deb -O /tmp/packages-microsoft-prod.deb && \
+        dpkg -i /tmp/packages-microsoft-prod.deb && \
+        rm -f /tmp/packages-microsoft-prod.deb; \
+    fi && \
     echo "Installing additional system packages: $SYSTEM_PACKAGES" && \
     apt-get update && \
     apt-get install -y $SYSTEM_PACKAGES && \
@@ -45,15 +53,8 @@ RUN if getent group $USER_GID > /dev/null 2>&1; then \
 # Create app directory
 WORKDIR /app
 
-# Install Claude Code globally (optionally a specific version)
+# Claude Code will be installed via native installer after switching to claude-user
 ARG CC_VERSION=""
-RUN if [ -n "$CC_VERSION" ]; then \
-        echo "Installing Claude Code version: $CC_VERSION" && \
-        npm install -g @anthropic-ai/claude-code@$CC_VERSION; \
-    else \
-        echo "Installing latest Claude Code" && \
-        npm install -g @anthropic-ai/claude-code; \
-    fi
 
 # Pre-install MCP server packages globally (avoids permission issues at runtime)
 RUN npm install -g mcp-communicator-telegram @playwright/mcp
@@ -66,8 +67,9 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Create directories for configuration
 RUN mkdir -p /app/.claude /home/claude-user/.claude
 
-# Copy startup script
+# Copy startup and statusline scripts
 COPY src/startup.sh /app/
+COPY src/statusline.sh /app/
 
 # Copy .claude directory for runtime use
 COPY .claude /app/.claude
@@ -88,15 +90,15 @@ COPY mcp-servers.txt /app/
 COPY install-mcp-servers.sh /app/
 
 # Fix Windows CRLF line endings and set executable bits on all shell scripts/text files
-RUN sed -i 's/\r$//' /app/startup.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/.env && \
-    chmod +x /app/startup.sh /app/install-mcp-servers.sh
+RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/.env && \
+    chmod +x /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh
 
 # Move auth files to proper location before switching user
 RUN cp /tmp/.claude.json /home/claude-user/.claude.json && \
     rm -f /tmp/.claude.json
 
-# Set proper ownership for everything
-RUN chown -R claude-user /app /home/claude-user
+# Set proper ownership for everything (including npm global dir so auto-update works)
+RUN chown -R claude-user /app /home/claude-user /usr/local/lib/node_modules /usr/local/bin
 
 # Switch to non-root user
 USER claude-user
@@ -104,12 +106,20 @@ USER claude-user
 # Set HOME immediately after switching user
 ENV HOME=/home/claude-user
 
+# Install Claude Code via native installer as claude-user (supports auto-update)
+RUN curl -fsSL https://claude.ai/install.sh | bash
+# If a specific version was requested, pin that version via npm
+RUN if [ -n "$CC_VERSION" ]; then \
+        echo "Pinning Claude Code version: $CC_VERSION" && \
+        npm install -g @anthropic-ai/claude-code@$CC_VERSION; \
+    fi
+
 # Install uv (Astral) for claude-user for Serena MCP (todo make this modular.)
 # Note: Will be installed for claude-user after user creation
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Add claude-user's local bin to PATH
-ENV PATH="/home/claude-user/.local/bin:${PATH}"
+# Add claude-user's local bin and native Claude installer path to PATH
+ENV PATH="/home/claude-user/.claude/local/bin:/home/claude-user/.local/bin:${PATH}"
 
 # Install MCP servers from configuration file
 RUN /app/install-mcp-servers.sh
@@ -130,8 +140,7 @@ RUN if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then \
 # Set working directory to mounted volume
 WORKDIR /workspace
 
-# Environment variables will be passed from host
-ENV NODE_ENV=production
+# Do not set NODE_ENV=production — it interferes with Claude Code's auto-updater
 
 # Start both MCP server and Claude Code
 ENTRYPOINT ["/app/startup.sh"]

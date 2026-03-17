@@ -101,6 +101,41 @@ if [ -n "${HOST_PROJECT_KEY:-}" ]; then
     fi
 fi
 
+# Mark workspace as safe for git (ownership differs due to Docker volume mount)
+git config --global --add safe.directory "$(pwd)"
+
+# Match Windows host git line-ending config so Claude's commits don't show
+# every file as changed due to CRLF/LF mismatch on the mounted volume
+git config --global core.autocrlf true
+
+# Apply optional settings to ~/.claude/settings.json
+python3 -c "
+import json, os
+
+f = os.path.expanduser('~/.claude/settings.json')
+try:
+    with open(f) as fh: d = json.load(fh)
+except: d = {}
+
+# Disable AI attribution unless opted out
+if os.environ.get('DISABLE_AI_ATTRIBUTION', 'true') != 'false':
+    d['includeCoAuthoredBy'] = False
+    d['attribution'] = {'commit': '', 'pr': ''}
+
+# Enable enhanced status line unless opted out
+if os.environ.get('ENABLE_STATUSLINE', 'true') != 'false':
+    d['statusLine'] = {'type': 'command', 'command': '/app/statusline.sh'}
+
+with open(f, 'w') as fh: json.dump(d, fh, indent=2)
+" 2>/dev/null || true
+
+if [ "${DISABLE_AI_ATTRIBUTION:-true}" != "false" ]; then
+    echo "✓ AI attribution disabled in commits"
+fi
+if [ "${ENABLE_STATUSLINE:-true}" != "false" ]; then
+    echo "✓ Enhanced status line enabled"
+fi
+
 # Auto-trust the current workspace so Claude doesn't prompt on first run
 WORK_DIR="$(pwd)"
 python3 -c "
