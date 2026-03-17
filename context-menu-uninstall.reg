@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+; Remove Claude Docker context menu entries
+
+[-HKEY_CLASSES_ROOT\Directory\shell\ClaudeDocker]
+
+[-HKEY_CLASSES_ROOT\Directory\background\shell\ClaudeDocker]
+
+[-HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker]

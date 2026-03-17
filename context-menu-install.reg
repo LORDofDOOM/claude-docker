@@ -1,0 +1,45 @@
+Windows Registry Editor Version 5.00
+
+; Claude Docker - Right-click on a folder or folder background to launch claude-docker
+; Icon resolves via %CLAUDE_DOCKER_PROJECT%\claude.ico (set by install-windows.bat)
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeDocker]
+"MUIVerb"="Claude Docker"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
+  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
+  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+"ExtendedSubCommandsKey"="Directory\\ContextMenus\\MenuClaudeDocker"
+
+[HKEY_CLASSES_ROOT\Directory\background\shell\ClaudeDocker]
+"MUIVerb"="Claude Docker"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
+  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
+  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+"ExtendedSubCommandsKey"="Directory\\ContextMenus\\MenuClaudeDocker"
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\01open]
+"MUIVerb"="Claude Docker"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
+  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
+  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\01open\command]
+@="cmd.exe /s /k \"cd /d \"%V\" && claude-docker\""
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\02continue]
+"MUIVerb"="Claude Docker (Continue)"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
+  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
+  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\02continue\command]
+@="cmd.exe /s /k \"cd /d \"%V\" && claude-docker --continue\""
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\03rebuild]
+"MUIVerb"="Claude Docker (Rebuild)"
+"Icon"=hex(2):25,00,43,00,4c,00,41,00,55,00,44,00,45,00,5f,00,44,00,4f,00,43,00,\
+  4b,00,45,00,52,00,5f,00,50,00,52,00,4f,00,4a,00,45,00,43,00,54,00,25,00,5c,\
+  00,63,00,6c,00,61,00,75,00,64,00,65,00,2e,00,69,00,63,00,6f,00,00,00
+
+[HKEY_CLASSES_ROOT\Directory\ContextMenus\MenuClaudeDocker\shell\03rebuild\command]
+@="cmd.exe /s /k \"cd /d \"%V\" && claude-docker --rebuild\""
