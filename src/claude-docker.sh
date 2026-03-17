@@ -183,26 +183,13 @@ echo ""
 SSH_KEY_PATH="$SSH_DIR/id_rsa"
 SSH_PUB_KEY_PATH="$SSH_DIR/id_rsa.pub"
 
-if [ ! -f "$SSH_KEY_PATH" ] || [ ! -f "$SSH_PUB_KEY_PATH" ]; then
-    echo ""
-    echo "⚠️  SSH keys not found for git operations"
-    echo "   To enable git push/pull in Claude Docker:"
-    echo ""
-    echo "   1. Generate SSH key:"
-    echo "      ssh-keygen -t rsa -b 4096 -f $SSH_DIR/id_rsa -N ''"
-    echo ""
-    echo "   2. Add public key to GitHub:"
-    echo "      cat $SSH_DIR/id_rsa.pub"
-    echo "      # Copy output and add to: GitHub → Settings → SSH Keys"
-    echo ""
-    echo "   3. Test connection:"
-    echo "      ssh -T git@github.com -i $SSH_DIR/id_rsa"
-    echo ""
-    echo "   Claude will continue without SSH keys (read-only git operations only)"
-    echo ""
-else
+# Git authentication: try SSH keys, then host git credentials (GCM/gh CLI)
+GIT_CREDENTIAL_TOKEN=""
+GIT_CREDENTIAL_USER=""
+
+if [ -f "$SSH_KEY_PATH" ] && [ -f "$SSH_PUB_KEY_PATH" ]; then
     echo "✓ SSH keys found for git operations"
-    
+
     # Create SSH config if it doesn't exist
     SSH_CONFIG_PATH="$SSH_DIR/config"
     if [ ! -f "$SSH_CONFIG_PATH" ]; then
@@ -215,6 +202,39 @@ Host github.com
 EOF
         echo "✓ SSH config created for GitHub"
     fi
+elif [ "${SHARE_HOST_GIT_CREDENTIALS:-false}" = "true" ]; then
+    # Try to extract git credentials from host (GitHub CLI or Git Credential Manager)
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+        GIT_CREDENTIAL_TOKEN=$(gh auth token 2>/dev/null || true)
+        GIT_CREDENTIAL_USER=$(gh api user --jq .login 2>/dev/null || echo "git")
+        if [ -n "$GIT_CREDENTIAL_TOKEN" ]; then
+            echo "✓ Using GitHub CLI credentials for git operations"
+        fi
+    fi
+
+    # Fallback: try Git Credential Manager
+    if [ -z "$GIT_CREDENTIAL_TOKEN" ]; then
+        CRED_OUTPUT=$(printf "protocol=https\nhost=github.com\n" | git credential fill 2>/dev/null || true)
+        if [ -n "$CRED_OUTPUT" ]; then
+            GIT_CREDENTIAL_TOKEN=$(echo "$CRED_OUTPUT" | grep '^password=' | cut -d= -f2-)
+            GIT_CREDENTIAL_USER=$(echo "$CRED_OUTPUT" | grep '^username=' | cut -d= -f2-)
+            if [ -n "$GIT_CREDENTIAL_TOKEN" ]; then
+                echo "✓ Using host Git Credential Manager for git operations"
+            fi
+        fi
+    fi
+
+    if [ -z "$GIT_CREDENTIAL_TOKEN" ]; then
+        echo ""
+        echo "⚠️  No git credentials found for push/pull operations"
+        echo "   Options:"
+        echo "   a) Install GitHub CLI and run: gh auth login"
+        echo "   b) Generate SSH key: ssh-keygen -t rsa -b 4096 -f $SSH_DIR/id_rsa -N ''"
+        echo "   c) Set SHARE_HOST_GIT_CREDENTIALS=false in .env to suppress this message"
+        echo ""
+    fi
+else
+    echo "Host git credential sharing disabled (SHARE_HOST_GIT_CREDENTIALS=false)"
 fi
 
 # Prepare additional mount arguments
@@ -332,6 +352,12 @@ else
 fi
 
 # Compute host project key for session linking (only used in shared mode)
+# Pass git credentials to container if available
+GIT_CRED_ARGS=""
+if [ -n "${GIT_CREDENTIAL_TOKEN:-}" ]; then
+    GIT_CRED_ARGS="-e GIT_CREDENTIAL_TOKEN=$GIT_CREDENTIAL_TOKEN -e GIT_CREDENTIAL_USER=${GIT_CREDENTIAL_USER:-git}"
+fi
+
 HOST_PROJECT_KEY_ARG=""
 if [ "${SHARE_NATIVE_CLAUDE:-false}" = "true" ]; then
     HOST_PROJECT_KEY=$(echo "$CURRENT_DIR" | sed 's|\\|/|g; s|:|--|g; s|/|-|g; s|\.|-|g')
@@ -349,6 +375,7 @@ echo "Starting Claude Code in Docker..."
     $MOUNT_ARGS \
     $ENV_ARGS \
     -e CLAUDE_CONTINUE_FLAG="$CONTINUE_FLAG" \
+    $GIT_CRED_ARGS \
     $HOST_PROJECT_KEY_ARG \
     --workdir "${WORKSPACE_PATH}" \
     --name "claude-docker-${PROJECT_NAME}-$$" \

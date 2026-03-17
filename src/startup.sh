@@ -104,6 +104,19 @@ fi
 # Mark workspace as safe for git (ownership differs due to Docker volume mount)
 git config --global --add safe.directory "$(pwd)"
 
+# Configure git credential helper if host credentials were passed in
+if [ -n "${GIT_CREDENTIAL_TOKEN:-}" ]; then
+    # Create a simple credential helper script that returns the host's credentials
+    cat > /home/claude-user/.git-credential-helper.sh << 'HELPER'
+#!/bin/bash
+echo "username=${GIT_CREDENTIAL_USER:-git}"
+echo "password=${GIT_CREDENTIAL_TOKEN}"
+HELPER
+    chmod +x /home/claude-user/.git-credential-helper.sh
+    git config --global credential.helper "/home/claude-user/.git-credential-helper.sh"
+    echo "✓ Git credentials configured from host"
+fi
+
 # Match Windows host git line-ending config so Claude's commits don't show
 # every file as changed due to CRLF/LF mismatch on the mounted volume
 git config --global core.autocrlf true
