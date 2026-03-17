@@ -297,9 +297,28 @@ if (!string.IsNullOrEmpty(gpuAccess))
 
 runArgs.Add("--add-host=host.docker.internal:host-gateway");
 
+// Use project-specific workspace path so each project gets its own session history
+var projectName = Path.GetFileName(currentDir) ?? "project";
+var workspacePath = $"/workspace/{projectName}";
+
 // Volume mounts
-runArgs.AddRange(["-v", $"{currentDir}:/workspace"]);
-runArgs.AddRange(["-v", $"{claudeHomeDir}:/home/claude-user/.claude:rw"]);
+runArgs.AddRange(["-v", $"{currentDir}:{workspacePath}"]);
+
+// Choose claude config mount: shared with host or isolated
+var shareNative = envVars.TryGetValue("SHARE_NATIVE_CLAUDE", out var sn)
+    && sn.Equals("true", StringComparison.OrdinalIgnoreCase);
+var nativeClaudeDir = Path.Combine(hostHome, ".claude");
+
+if (shareNative && Directory.Exists(nativeClaudeDir))
+{
+    Info("Sharing host's ~/.claude (memory, sessions, settings)");
+    runArgs.AddRange(["-v", $"{nativeClaudeDir}:/home/claude-user/.claude:rw"]);
+}
+else
+{
+    runArgs.AddRange(["-v", $"{claudeHomeDir}:/home/claude-user/.claude:rw"]);
+}
+
 runArgs.AddRange(["-v", $"{sshDir}:/home/claude-user/.ssh:rw"]);
 
 // Conda mounts
@@ -322,12 +341,19 @@ if (envVars.TryGetValue("CONDA_PREFIX", out var condaPrefix) && !string.IsNullOr
 // Environment variables
 runArgs.AddRange(["-e", $"CLAUDE_CONTINUE_FLAG={continueFlag}"]);
 
+// Pass host project key so startup.sh can link session history (only needed in shared mode)
+if (shareNative)
+{
+    var hostProjectKey = currentDir.Replace("\\", "/").Replace(":/", "--").Replace("/", "-").Replace(".", "-");
+    runArgs.AddRange(["-e", $"HOST_PROJECT_KEY={hostProjectKey}"]);
+}
+
 // Container name
 var dirName = Path.GetFileName(currentDir) ?? "project";
 var pid = Environment.ProcessId;
 var containerName = $"claude-docker-{dirName}-{pid}";
 
-runArgs.AddRange(["--workdir", "/workspace"]);
+runArgs.AddRange(["--workdir", workspacePath]);
 runArgs.AddRange(["--name", containerName]);
 runArgs.Add("claude-docker:latest");
 runArgs.AddRange(extraArgs);

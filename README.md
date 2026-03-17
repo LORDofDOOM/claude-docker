@@ -173,6 +173,27 @@ del "%USERPROFILE%\.claude-docker\claude-home\CLAUDE.md"
 ```
 Then rebuild with `claude-docker --rebuild` to copy the fresh template.
 
+#### Shared Native Claude Configuration
+By default, claude-docker uses its own isolated configuration at `~/.claude-docker/claude-home/`. If you also use Claude Code natively (just running `claude` on the host), you can share configuration so both environments have the same memory, sessions, settings, and conversation history.
+
+```bash
+SHARE_NATIVE_CLAUDE=true
+```
+
+| | `false` (default) | `true` |
+|---|---|---|
+| **Config location** | `~/.claude-docker/claude-home/` | Host's `~/.claude/` |
+| **Memory** | Isolated | Shared |
+| **Session history** | Isolated (per project) | Shared (with path linking) |
+| **CLAUDE.md / settings** | Isolated | Shared |
+| **Commands / Agents** | Isolated | Shared |
+| **`--continue`** | Only resumes docker sessions | Resumes across native and docker |
+| **MCP servers** | Always separate (stored in `.claude.json`) | Always separate |
+
+When enabled, `--continue` works across both — start a task with `claude-docker`, then resume it with native `claude` (or vice versa) in the same project folder.
+
+**Note:** Each project directory gets its own session history regardless of this setting. Running `claude-docker` in `D:\ProjectA` and `D:\ProjectB` will never share sessions with each other.
+
 #### Conda Integration
 Mount your host conda environments and packages into the container:
 ```bash

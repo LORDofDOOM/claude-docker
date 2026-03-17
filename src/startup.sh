@@ -69,18 +69,51 @@ fi
 #     done < <(sed 's://.*$::g' "$HOME/.claude/settings.json" | jq -r '.env // {} | to_entries | .[] | "\(.key)=\(.value)"' 2>/dev/null)
 # fi
 
-# Auto-trust /workspace so Claude doesn't prompt on first run
+# Link Docker project path to host project path for shared session history
+# This allows --continue to work across native claude and claude-docker
+if [ -n "${HOST_PROJECT_KEY:-}" ]; then
+    DOCKER_PROJECT_KEY=$(pwd | sed 's|/|-|g; s|\.|-|g')
+    PROJECTS_DIR="$HOME/.claude/projects"
+    mkdir -p "$PROJECTS_DIR"
+    # Skip if they're the same key or already linked
+    if [ "$HOST_PROJECT_KEY" != "$DOCKER_PROJECT_KEY" ]; then
+        if [ -L "$PROJECTS_DIR/$DOCKER_PROJECT_KEY" ]; then
+            echo "✓ Session history already linked: $DOCKER_PROJECT_KEY"
+        elif [ -d "$PROJECTS_DIR/$HOST_PROJECT_KEY" ]; then
+            # Host project exists — merge docker sessions into it, then symlink
+            if [ -d "$PROJECTS_DIR/$DOCKER_PROJECT_KEY" ]; then
+                # Move any docker session files into the host project dir
+                cp -rn "$PROJECTS_DIR/$DOCKER_PROJECT_KEY/"* "$PROJECTS_DIR/$HOST_PROJECT_KEY/" 2>/dev/null || true
+                rm -rf "$PROJECTS_DIR/$DOCKER_PROJECT_KEY"
+            fi
+            ln -s "$PROJECTS_DIR/$HOST_PROJECT_KEY" "$PROJECTS_DIR/$DOCKER_PROJECT_KEY"
+            echo "✓ Linked session history: $DOCKER_PROJECT_KEY → $HOST_PROJECT_KEY"
+        elif [ -d "$PROJECTS_DIR/$DOCKER_PROJECT_KEY" ]; then
+            # Only docker project exists — link host to it
+            ln -s "$PROJECTS_DIR/$DOCKER_PROJECT_KEY" "$PROJECTS_DIR/$HOST_PROJECT_KEY"
+            echo "✓ Linked session history: $HOST_PROJECT_KEY → $DOCKER_PROJECT_KEY"
+        else
+            # Neither exists — create host dir and symlink docker to it
+            mkdir -p "$PROJECTS_DIR/$HOST_PROJECT_KEY"
+            ln -s "$PROJECTS_DIR/$HOST_PROJECT_KEY" "$PROJECTS_DIR/$DOCKER_PROJECT_KEY"
+            echo "✓ Linked session history: $DOCKER_PROJECT_KEY → $HOST_PROJECT_KEY"
+        fi
+    fi
+fi
+
+# Auto-trust the current workspace so Claude doesn't prompt on first run
+WORK_DIR="$(pwd)"
 python3 -c "
-import json, os
+import json, os, sys
 f = os.path.expanduser('~/.claude.json')
 try:
     with open(f) as fh: d = json.load(fh)
 except: d = {}
 p = d.setdefault('projects', {})
-w = p.setdefault('/workspace', {})
+w = p.setdefault(sys.argv[1], {})
 w['hasTrustDialogAccepted'] = True
 with open(f, 'w') as fh: json.dump(d, fh)
-" 2>/dev/null || true
+" "$WORK_DIR" 2>/dev/null || true
 
 # Start Claude Code with permissions bypass
 echo "Starting Claude Code..."

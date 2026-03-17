@@ -292,16 +292,37 @@ else
     echo "No additional conda directories configured"
 fi
 
+# Use project-specific workspace path so each project gets its own session history
+PROJECT_NAME="$(basename "$CURRENT_DIR")"
+WORKSPACE_PATH="/workspace/${PROJECT_NAME}"
+
+# Choose claude config mount: shared with host or isolated
+if [ "${SHARE_NATIVE_CLAUDE:-false}" = "true" ] && [ -n "$HOST_HOME" ] && [ -d "$HOST_HOME/.claude" ]; then
+    CLAUDE_MOUNT="$HOST_HOME/.claude"
+    echo "✓ Sharing host's ~/.claude (memory, sessions, settings)"
+else
+    CLAUDE_MOUNT="$CLAUDE_HOME_DIR"
+fi
+
+# Compute host project key for session linking (only used in shared mode)
+HOST_PROJECT_KEY_ARG=""
+if [ "${SHARE_NATIVE_CLAUDE:-false}" = "true" ]; then
+    HOST_PROJECT_KEY=$(echo "$CURRENT_DIR" | sed 's|\\|/|g; s|:|--|g; s|/|-|g; s|\.|-|g')
+    HOST_PROJECT_KEY_ARG="-e HOST_PROJECT_KEY=$HOST_PROJECT_KEY"
+fi
+
 # Run Claude Code in Docker
 echo "Starting Claude Code in Docker..."
 "$DOCKER" run -it --rm \
     $DOCKER_OPTS \
-    -v "$CURRENT_DIR:/workspace" \
-    -v "$CLAUDE_HOME_DIR:/home/claude-user/.claude:rw" \
+    $AUTH_MOUNT \
+    -v "$CURRENT_DIR:${WORKSPACE_PATH}" \
+    -v "${CLAUDE_MOUNT}:/home/claude-user/.claude:rw" \
     -v "$SSH_DIR:/home/claude-user/.ssh:rw" \
     $MOUNT_ARGS \
     $ENV_ARGS \
     -e CLAUDE_CONTINUE_FLAG="$CONTINUE_FLAG" \
-    --workdir /workspace \
-    --name "claude-docker-$(basename "$CURRENT_DIR")-$$" \
+    $HOST_PROJECT_KEY_ARG \
+    --workdir "${WORKSPACE_PATH}" \
+    --name "claude-docker-${PROJECT_NAME}-$$" \
     claude-docker:latest ${ARGS[@]+"${ARGS[@]}"}
