@@ -86,11 +86,11 @@ COPY .claude/CLAUDE.md /home/claude-user/.claude/CLAUDE.md
 COPY .claude.json /tmp/.claude.json
 
 # Copy MCP server configuration files (as root)
-COPY mcp-servers.txt /app/
+COPY mcp-servers.txt mcp-servers-dotnet.txt /app/
 COPY install-mcp-servers.sh /app/
 
 # Fix Windows CRLF line endings and set executable bits on all shell scripts/text files
-RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/.env && \
+RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/mcp-servers-dotnet.txt /app/.env && \
     chmod +x /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh
 
 # Move auth files to proper location before switching user
@@ -119,7 +119,24 @@ RUN if [ -n "$CC_VERSION" ]; then \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Add claude-user's local bin and native Claude installer path to PATH
-ENV PATH="/home/claude-user/.claude/local/bin:/home/claude-user/.local/bin:${PATH}"
+ENV PATH="/home/claude-user/.claude/local/bin:/home/claude-user/.local/bin:/home/claude-user/.dotnet/tools:${PATH}"
+
+# Install .NET MCP tools if enabled and dotnet SDK is available
+ARG ENABLE_DOTNET_MCP="false"
+RUN if [ "$ENABLE_DOTNET_MCP" = "true" ] && command -v dotnet >/dev/null 2>&1; then \
+        echo "Installing .NET MCP server tools..." && \
+        dotnet tool install --global NuGet.Mcp.Server && \
+        dotnet tool install --global DimonSmart.NugetMcpServer && \
+        dotnet tool install --global csharp-ls && \
+        git clone --depth 1 https://github.com/HYMMA/csharp-lsp-mcp.git /tmp/csharp-lsp-mcp && \
+        dotnet publish /tmp/csharp-lsp-mcp/csharp-lsp-mcp/src/CSharpLspMcp -c Release -o /home/claude-user/.dotnet/tools && \
+        rm -rf /tmp/csharp-lsp-mcp && \
+        echo ".NET MCP tools installed successfully"; \
+    elif [ "$ENABLE_DOTNET_MCP" = "true" ]; then \
+        echo "⚠ ENABLE_DOTNET_MCP=true but no .NET SDK found — add dotnet-sdk-* to SYSTEM_PACKAGES"; \
+    else \
+        echo "Skipping .NET MCP tools (ENABLE_DOTNET_MCP not set)"; \
+    fi
 
 # Install MCP servers from configuration file
 RUN /app/install-mcp-servers.sh

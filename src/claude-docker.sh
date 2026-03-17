@@ -148,6 +148,10 @@ if [ "$NEED_REBUILD" = true ]; then
         echo "✓ Building with Claude Code version: $CC_VERSION"
         BUILD_ARGS="$BUILD_ARGS --build-arg CC_VERSION=\"$CC_VERSION\""
     fi
+    if [ "${ENABLE_DOTNET_MCP:-false}" = "true" ]; then
+        echo "✓ Building with .NET MCP servers (NuGet, C# LSP, type metadata)"
+        BUILD_ARGS="$BUILD_ARGS --build-arg ENABLE_DOTNET_MCP=true"
+    fi
 
     eval "'$DOCKER' build $NO_CACHE $BUILD_ARGS -t claude-docker:latest \"$PROJECT_ROOT\""
     

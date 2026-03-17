@@ -97,4 +97,23 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     echo "---"
 done < /app/mcp-servers.txt
 
+# Load additional MCP server files based on environment flags
+if [ "${ENABLE_DOTNET_MCP:-false}" = "true" ] && [ -f /app/mcp-servers-dotnet.txt ]; then
+    echo ""
+    echo "Installing .NET MCP servers..."
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+            continue
+        fi
+
+        echo "Executing: $(echo "$line" | head -c 100)..."
+        if eval "$line"; then
+            echo "✓ Successfully installed MCP server"
+        else
+            echo "✗ Failed to install MCP server (continuing)"
+        fi
+        echo "---"
+    done < /app/mcp-servers-dotnet.txt
+fi
+
 echo "MCP server installation complete"

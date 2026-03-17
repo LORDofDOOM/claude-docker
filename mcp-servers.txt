@@ -23,6 +23,7 @@ claude mcp add -s user --transport http grep https://mcp.grep.app
 # Playwright - Browser automation (runs inside container via stdio)
 claude mcp add-json playwright -s user '{"command":"npx","args":["@playwright/mcp","--headless"]}'
 
+
 # === OPTIONAL MCP SERVERS (uncomment to enable) ===
 
 # Zen MCP - Multi-model code review/debugging with Gemini and other LLMs

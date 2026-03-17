@@ -1,0 +1,14 @@
+# .NET MCP servers (loaded when ENABLE_DOTNET_MCP=true)
+# Requires dotnet-sdk-* in SYSTEM_PACKAGES
+
+# Microsoft Learn Docs - Live access to current .NET/C#/ASP.NET/EF Core documentation
+claude mcp add -s user --transport http mslearn https://learn.microsoft.com/api/mcp
+
+# NuGet MCP Server (Official) - Smart package search, vulnerability detection, version resolution
+claude mcp add-json nuget -s user '{"command":"nuget-mcp-server","args":[]}'
+
+# NugetMcpServer (DimonSmart) - Real type-level metadata from NuGet packages (reduces API hallucinations)
+claude mcp add-json nuget-types -s user '{"command":"NugetMcpServer","args":[]}'
+
+# C# LSP MCP - IDE-level C# intelligence: diagnostics, IntelliSense, code navigation, refactoring
+claude mcp add-json csharp -s user '{"command":"csharp-lsp-mcp","args":[]}'
