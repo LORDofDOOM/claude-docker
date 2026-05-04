@@ -219,6 +219,24 @@ SHARE_NATIVE_OPENCODE=false      # mirror the host's ~/.config/opencode and ~/.l
 
 **Note on Anthropic auth:** OpenCode does **not** support Claude Pro/Max subscription auth — Anthropic explicitly prohibits it. Use an `ANTHROPIC_API_KEY` (or any of the 75+ other providers) via `opencode auth login`. If you want to use a Claude subscription, run `claude-docker` (default).
 
+#### Native Windows statusline (opt-in)
+
+The same enhanced statusline used inside the Docker container (model, cost, context bar, git branch, 5h/7d plan usage) can be enabled for **native Windows Claude Code** via a PowerShell port at `src/statusline.ps1`.
+
+```powershell
+# Enable
+install-windows-statusline.bat
+
+# Disable
+uninstall-windows-statusline.bat
+```
+
+The installer merges into `%USERPROFILE%\.claude\settings.json` — your existing keys are preserved. Restart Claude Code after running it.
+
+**Caveats:**
+- Cold-start adds ~150–300 ms per render (Windows PowerShell startup). Each render after the first stays in cache; the OAuth usage check is itself cached for 60 seconds in `%TEMP%\.claude-usage-cache.json`.
+- If you also use `SHARE_NATIVE_CLAUDE=true`, the docker container's startup writes its own `statusLine` (pointing at `/app/statusline.sh`) into the *same* settings file, which would clobber the Windows command. Set `ENABLE_STATUSLINE=false` in `.env` to keep the docker side from overwriting it.
+
 #### Extra Directory Mounts
 Mount additional host directories into the container for Claude to access. Useful for shared libraries, reference projects, or source code that lives outside the current project folder.
 
