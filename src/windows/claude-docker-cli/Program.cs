@@ -9,6 +9,9 @@ var continueFlag = "";
 var memoryLimit = "";
 var gpuAccess = "";
 var ccVersion = "";
+// Default tool: derived from invocation name (so the sister tool
+// "opencode-docker" defaults to opencode without needing --tool).
+var tool = DefaultToolFromProcessName();
 var extraArgs = new List<string>();
 
 for (int i = 0; i < args.Length; i++)
@@ -36,10 +39,20 @@ for (int i = 0; i < args.Length; i++)
         case "--cc-version" when i + 1 < args.Length:
             ccVersion = args[++i];
             break;
+        case "--tool" when i + 1 < args.Length:
+            tool = args[++i];
+            break;
         default:
             extraArgs.Add(args[i]);
             break;
     }
+}
+
+if (tool != "claude" && tool != "opencode")
+{
+    Error($"--tool must be 'claude' or 'opencode' (got: {tool})");
+    Environment.Exit(2);
+    return;
 }
 
 // ── Resolve paths ────────────────────────────────────────────────
@@ -59,6 +72,8 @@ if (projectRoot is null)
 var claudeDockerDir = Environment.GetEnvironmentVariable("CLAUDE_DOCKER_HOME")
     ?? Path.Combine(hostHome, ".claude-docker");
 var claudeHomeDir = Path.Combine(claudeDockerDir, "claude-home");
+var opencodeConfigDir = Path.Combine(claudeDockerDir, "opencode-config");
+var opencodeDataDir = Path.Combine(claudeDockerDir, "opencode-data");
 var sshDir = Path.Combine(claudeDockerDir, "ssh");
 
 // ── Check container runtime ──────────────────────────────────────
@@ -129,18 +144,26 @@ if (forceRebuild)
     needRebuild = true;
 }
 
-// Auto-rebuild: compare git commit hash against last build
+// Auto-rebuild: compare git commit hash AND build-time feature flags
+// (e.g. switching to --tool opencode on an image built without OpenCode must rebuild).
 var buildHashFile = Path.Combine(claudeDockerDir, ".build-hash");
 var (_, gitHashOut) = RunCapture("git", $"-C \"{projectRoot}\" rev-parse --short HEAD");
-var currentHash = gitHashOut.Trim();
-if (string.IsNullOrEmpty(currentHash)) currentHash = "unknown";
+var gitHash = gitHashOut.Trim();
+if (string.IsNullOrEmpty(gitHash)) gitHash = "unknown";
+
+var opencodeEnv = envVars.TryGetValue("ENABLE_OPENCODE", out var oce)
+    && oce.Equals("true", StringComparison.OrdinalIgnoreCase);
+var opencodeRequired = opencodeEnv || tool == "opencode";
+var dotnetEnv = envVars.TryGetValue("ENABLE_DOTNET_MCP", out var dne)
+    && dne.Equals("true", StringComparison.OrdinalIgnoreCase);
+var currentHash = $"{gitHash}|opencode={opencodeRequired.ToString().ToLowerInvariant()}|dotnet={dotnetEnv.ToString().ToLowerInvariant()}";
 
 if (!needRebuild)
 {
     var previousHash = File.Exists(buildHashFile) ? File.ReadAllText(buildHashFile).Trim() : "";
     if (currentHash != previousHash)
     {
-        Console.WriteLine($"New commit detected ({previousHash} -> {currentHash}) — auto-rebuilding...");
+        Console.WriteLine($"Build inputs changed ({previousHash} -> {currentHash}) — auto-rebuilding...");
         needRebuild = true;
     }
 }
@@ -195,6 +218,14 @@ if (needRebuild)
         buildArgs.AddRange(["--build-arg", "ENABLE_DOTNET_MCP=true"]);
     }
 
+    var envOpencode = envVars.TryGetValue("ENABLE_OPENCODE", out var oc)
+        && oc.Equals("true", StringComparison.OrdinalIgnoreCase);
+    if (envOpencode || tool == "opencode")
+    {
+        Info("Building with OpenCode runtime");
+        buildArgs.AddRange(["--build-arg", "ENABLE_OPENCODE=true"]);
+    }
+
     buildArgs.AddRange(["-t", "claude-docker:latest", projectRoot]);
 
     Console.WriteLine($"Running: {dockerCmd} {string.Join(' ', buildArgs)}");
@@ -215,6 +246,8 @@ if (needRebuild)
 
 // ── Ensure directories ───────────────────────────────────────────
 Directory.CreateDirectory(claudeHomeDir);
+Directory.CreateDirectory(opencodeConfigDir);
+Directory.CreateDirectory(opencodeDataDir);
 Directory.CreateDirectory(sshDir);
 
 // Copy template .claude contents to persistent directory if empty
@@ -232,6 +265,23 @@ if (File.Exists(hostCredsFile) && !File.Exists(persistCreds))
 {
     Info("Copying Claude authentication to persistent directory");
     File.Copy(hostCredsFile, persistCreds);
+}
+
+// Reuse host's OpenCode auth/config when the persistent copies are empty —
+// mirrors the Claude bootstrap above so existing host credentials carry over.
+var hostOpencodeAuth = Path.Combine(hostHome, ".local", "share", "opencode", "auth.json");
+var persistOpencodeAuth = Path.Combine(opencodeDataDir, "auth.json");
+if (File.Exists(hostOpencodeAuth) && !File.Exists(persistOpencodeAuth))
+{
+    Info("Copying OpenCode auth.json from host to persistent directory");
+    File.Copy(hostOpencodeAuth, persistOpencodeAuth);
+}
+var hostOpencodeCfg = Path.Combine(hostHome, ".config", "opencode", "opencode.json");
+var persistOpencodeCfg = Path.Combine(opencodeConfigDir, "opencode.json");
+if (File.Exists(hostOpencodeCfg) && !File.Exists(persistOpencodeCfg))
+{
+    Info("Copying host OpenCode config to persistent directory");
+    File.Copy(hostOpencodeCfg, persistOpencodeCfg);
 }
 
 Console.WriteLine();
@@ -336,6 +386,35 @@ else
 
 runArgs.AddRange(["-v", $"{sshDir}:/home/claude-user/.ssh:rw"]);
 
+// OpenCode mounts: only added when running with --tool opencode.
+if (tool == "opencode")
+{
+    var shareNativeOpencode = envVars.TryGetValue("SHARE_NATIVE_OPENCODE", out var sno)
+        && sno.Equals("true", StringComparison.OrdinalIgnoreCase);
+    var nativeOpencodeCfg = Path.Combine(hostHome, ".config", "opencode");
+    var nativeOpencodeData = Path.Combine(hostHome, ".local", "share", "opencode");
+
+    string opencodeCfgMount;
+    string opencodeDataMount;
+    if (shareNativeOpencode &&
+        (Directory.Exists(nativeOpencodeCfg) || Directory.Exists(nativeOpencodeData)))
+    {
+        Info("Sharing host's OpenCode config + auth (~/.config/opencode, ~/.local/share/opencode)");
+        Directory.CreateDirectory(nativeOpencodeCfg);
+        Directory.CreateDirectory(nativeOpencodeData);
+        opencodeCfgMount = nativeOpencodeCfg;
+        opencodeDataMount = nativeOpencodeData;
+    }
+    else
+    {
+        opencodeCfgMount = opencodeConfigDir;
+        opencodeDataMount = opencodeDataDir;
+    }
+
+    runArgs.AddRange(["-v", $"{opencodeCfgMount}:/home/claude-user/.config/opencode:rw"]);
+    runArgs.AddRange(["-v", $"{opencodeDataMount}:/home/claude-user/.local/share/opencode:rw"]);
+}
+
 // Extra directory mounts (append :ro for read-only)
 if (envVars.TryGetValue("EXTRA_MOUNT_DIRS", out var extraDirs) && !string.IsNullOrEmpty(extraDirs))
 {
@@ -379,6 +458,7 @@ if (envVars.TryGetValue("CONDA_PREFIX", out var condaPrefix) && !string.IsNullOr
 
 // Environment variables
 runArgs.AddRange(["-e", $"CLAUDE_CONTINUE_FLAG={continueFlag}"]);
+runArgs.AddRange(["-e", $"CLAUDE_TOOL={tool}"]);
 
 // Pass host project key so startup.sh can link session history (only needed in shared mode)
 if (shareNative)
@@ -406,6 +486,25 @@ Environment.Exit(exitCode);
 // ═════════════════════════════════════════════════════════════════
 // Helper methods
 // ═════════════════════════════════════════════════════════════════
+
+static string DefaultToolFromProcessName()
+{
+    // The Windows tool ships under two ToolCommandNames: claude-docker and
+    // opencode-docker. Inspect the entry assembly / process path to default
+    // the runtime when no --tool flag is given.
+    try
+    {
+        var path = Environment.ProcessPath ?? "";
+        var name = Path.GetFileNameWithoutExtension(path);
+        if (!string.IsNullOrEmpty(name)
+            && name.Contains("opencode", StringComparison.OrdinalIgnoreCase))
+        {
+            return "opencode";
+        }
+    }
+    catch { /* ignore */ }
+    return "claude";
+}
 
 static string? FindProjectRoot()
 {

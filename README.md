@@ -95,6 +95,7 @@ claude-docker --cc-version 2.0.64   # Install specific Claude Code version
 | `--memory` | Set container memory limit | `claude-docker --memory 8g` |
 | `--gpus` | Enable GPU access | `claude-docker --gpus all` |
 | `--cc-version` | Install specific Claude Code version (requires rebuild) | `claude-docker --rebuild --cc-version 2.0.64` |
+| `--tool` | Pick the runtime: `claude` (default) or `opencode` | `claude-docker --tool opencode` |
 
 ### Automatic Rebuilds
 
@@ -193,6 +194,30 @@ SHARE_NATIVE_CLAUDE=true
 When enabled, `--continue` works across both — start a task with `claude-docker`, then resume it with native `claude` (or vice versa) in the same project folder.
 
 **Note:** Each project directory gets its own session history regardless of this setting. Running `claude-docker` in `D:\ProjectA` and `D:\ProjectB` will never share sessions with each other.
+
+#### OpenCode Runtime (sister command)
+
+The container can also run [OpenCode](https://github.com/anomalyco/opencode) instead of Claude Code, with the same launch ergonomics: same Docker image, same MCP servers, same auto-rebuild. Two equivalent ways to start it:
+
+```bash
+opencode-docker                  # sister command (preferred)
+claude-docker --tool opencode    # equivalent
+```
+
+```bash
+ENABLE_OPENCODE=true             # default: true — image always includes the opencode binary
+SHARE_NATIVE_OPENCODE=false      # mirror the host's ~/.config/opencode and ~/.local/share/opencode into the container
+```
+
+**Defaults baked into the image:**
+- `permission: "allow"` is set in the seeded `~/.config/opencode/opencode.json` — this is the OpenCode TUI equivalent of Claude's `--dangerously-skip-permissions` (the flag itself only exists on `opencode run`, not the TUI).
+- The same five MCP servers ship pre-configured (Serena, Context7, Telegram, grep.app, Playwright) — translated from `mcp-servers.txt` into OpenCode's declarative `"mcp": { … }` schema with `{env:VAR}` substitution.
+
+**Credentials** are persisted exactly like Claude's:
+- `false` (default): `~/.claude-docker/opencode-config/` and `~/.claude-docker/opencode-data/` (host-isolated). On first launch, host's `~/.local/share/opencode/auth.json` (if present) is copied in so existing API keys carry over.
+- `true`: bind-mounts the host's `~/.config/opencode` and `~/.local/share/opencode` directly, so native and docker share auth + sessions.
+
+**Note on Anthropic auth:** OpenCode does **not** support Claude Pro/Max subscription auth — Anthropic explicitly prohibits it. Use an `ANTHROPIC_API_KEY` (or any of the 75+ other providers) via `opencode auth login`. If you want to use a Claude subscription, run `claude-docker` (default).
 
 #### Extra Directory Mounts
 Mount additional host directories into the container for Claude to access. Useful for shared libraries, reference projects, or source code that lives outside the current project folder.

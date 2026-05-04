@@ -94,8 +94,9 @@ if [ ! -f "$PROJECT_ROOT/.env" ]; then
     echo "   Please edit it with your API keys!"
 fi
 
-# Add alias to the detected shell RC file
+# Add aliases to the detected shell RC file
 ALIAS_LINE="alias claude-docker='$PROJECT_ROOT/src/claude-docker.sh'"
+OPENCODE_ALIAS_LINE="alias opencode-docker='$PROJECT_ROOT/src/opencode-docker.sh'"
 if [ ! -f "$TARGET_RC_FILE" ]; then
     touch "$TARGET_RC_FILE"
     echo "✓ Created shell config file at $TARGET_RC_FILE"
@@ -110,6 +111,14 @@ else
     echo "✓ Claude-docker alias already exists in $TARGET_RC_NAME"
 fi
 
+if ! grep -Fq "alias opencode-docker=" "$TARGET_RC_FILE"; then
+    echo "# OpenCode Docker alias (sister of claude-docker)" >> "$TARGET_RC_FILE"
+    echo "$OPENCODE_ALIAS_LINE" >> "$TARGET_RC_FILE"
+    echo "✓ Added 'opencode-docker' alias to $TARGET_RC_NAME"
+else
+    echo "✓ OpenCode-docker alias already exists in $TARGET_RC_NAME"
+fi
+
 # Fix ownership when run with sudo so the invoking user can modify generated files.
 if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
     chown -R "$TARGET_UID:$TARGET_GID" "$CLAUDE_DOCKER_DIR"
@@ -121,6 +130,7 @@ fi
 
 # Make scripts executable
 chmod +x "$PROJECT_ROOT/src/claude-docker.sh"
+chmod +x "$PROJECT_ROOT/src/opencode-docker.sh"
 chmod +x "$PROJECT_ROOT/src/startup.sh"
 
 # Check for GPU support

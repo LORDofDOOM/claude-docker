@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": "allow",
+  "mcp": {
+    "serena": {
+      "type": "local",
+      "command": [
+        "bash",
+        "-c",
+        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/oraios/serena serena-agent; done; echo 'uvx not found' >&2; exit 1"
+      ],
+      "environment": {
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin"
+      },
+      "timeout": 60000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      }
+    },
+    "telegram": {
+      "type": "local",
+      "command": ["mcptelegram"],
+      "environment": {
+        "TELEGRAM_TOKEN": "{env:TELEGRAM_BOT_TOKEN}",
+        "CHAT_ID": "{env:TELEGRAM_CHAT_ID}"
+      }
+    },
+    "grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app"
+    },
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "@playwright/mcp", "--headless"]
+    }
+  }
+}

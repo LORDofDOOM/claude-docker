@@ -17,6 +17,8 @@ CONTINUE_FLAG=""
 MEMORY_LIMIT=""
 GPU_ACCESS=""
 CC_VERSION=""
+# Default tool may be pre-set by sister wrapper (opencode-docker.sh) via env.
+CLAUDE_TOOL_SELECTION="${CLAUDE_TOOL:-claude}"
 ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             CC_VERSION="$2"
             shift 2
             ;;
+        --tool)
+            CLAUDE_TOOL_SELECTION="$2"
+            shift 2
+            ;;
         *)
             ARGS+=("$1")
             shift
@@ -68,7 +74,17 @@ if [ -z "$HOST_HOME" ]; then
 fi
 
 CLAUDE_HOME_DIR="$CLAUDE_DOCKER_DIR/claude-home"
+OPENCODE_CONFIG_DIR="$CLAUDE_DOCKER_DIR/opencode-config"
+OPENCODE_DATA_DIR="$CLAUDE_DOCKER_DIR/opencode-data"
 SSH_DIR="$CLAUDE_DOCKER_DIR/ssh"
+
+case "$CLAUDE_TOOL_SELECTION" in
+    claude|opencode) ;;
+    *)
+        echo "Error: --tool must be 'claude' or 'opencode' (got: $CLAUDE_TOOL_SELECTION)"
+        exit 2
+        ;;
+esac
 
 # Check if .env exists in claude-docker directory for building
 ENV_FILE="$PROJECT_ROOT/.env"
@@ -108,14 +124,20 @@ if [ "$FORCE_REBUILD" = true ]; then
     NEED_REBUILD=true
 fi
 
-# Auto-rebuild: compare git commit hash against last build
+# Auto-rebuild: compare git commit hash AND build-time feature flags
+# (e.g. switching to --tool opencode on an image built without OpenCode must rebuild).
 BUILD_HASH_FILE="$CLAUDE_DOCKER_DIR/.build-hash"
-CURRENT_HASH=$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_HASH=$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+OPENCODE_REQUIRED=false
+if [ "${ENABLE_OPENCODE:-false}" = "true" ] || [ "$CLAUDE_TOOL_SELECTION" = "opencode" ]; then
+    OPENCODE_REQUIRED=true
+fi
+CURRENT_HASH="${GIT_HASH}|opencode=${OPENCODE_REQUIRED}|dotnet=${ENABLE_DOTNET_MCP:-false}"
 
 if [ "$NEED_REBUILD" = false ]; then
     PREVIOUS_HASH=$(cat "$BUILD_HASH_FILE" 2>/dev/null || echo "")
     if [ "$CURRENT_HASH" != "$PREVIOUS_HASH" ]; then
-        echo "New commit detected ($PREVIOUS_HASH -> $CURRENT_HASH) — auto-rebuilding..."
+        echo "Build inputs changed ($PREVIOUS_HASH -> $CURRENT_HASH) — auto-rebuilding..."
         NEED_REBUILD=true
     fi
 fi
@@ -152,6 +174,11 @@ if [ "$NEED_REBUILD" = true ]; then
         echo "✓ Building with .NET MCP servers (NuGet, C# LSP, type metadata)"
         BUILD_ARGS="$BUILD_ARGS --build-arg ENABLE_DOTNET_MCP=true"
     fi
+    # Always build OpenCode if env opt-in OR if the user is launching --tool opencode.
+    if [ "${ENABLE_OPENCODE:-false}" = "true" ] || [ "$CLAUDE_TOOL_SELECTION" = "opencode" ]; then
+        echo "✓ Building with OpenCode runtime"
+        BUILD_ARGS="$BUILD_ARGS --build-arg ENABLE_OPENCODE=true"
+    fi
 
     eval "'$DOCKER' build $NO_CACHE $BUILD_ARGS -t claude-docker:latest \"$PROJECT_ROOT\""
     
@@ -162,14 +189,27 @@ if [ "$NEED_REBUILD" = true ]; then
     echo "$CURRENT_HASH" > "$BUILD_HASH_FILE"
 fi
 
-# Ensure the claude-home and ssh directories exist
+# Ensure persistence directories exist (claude + opencode + ssh)
 mkdir -p "$CLAUDE_HOME_DIR"
+mkdir -p "$OPENCODE_CONFIG_DIR"
+mkdir -p "$OPENCODE_DATA_DIR"
 mkdir -p "$SSH_DIR"
 
 # Copy authentication files to persistent claude-home if they don't exist
 if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.claude/.credentials.json" ] && [ ! -f "$CLAUDE_HOME_DIR/.credentials.json" ]; then
     echo "✓ Copying Claude authentication to persistent directory"
     cp "$HOST_HOME/.claude/.credentials.json" "$CLAUDE_HOME_DIR/.credentials.json"
+fi
+
+# Reuse host's OpenCode auth/config if present and the persistent copy is empty.
+# Mirrors how Claude credentials are bootstrapped above.
+if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.local/share/opencode/auth.json" ] && [ ! -f "$OPENCODE_DATA_DIR/auth.json" ]; then
+    echo "✓ Copying OpenCode auth.json from host to persistent directory"
+    cp "$HOST_HOME/.local/share/opencode/auth.json" "$OPENCODE_DATA_DIR/auth.json"
+fi
+if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.config/opencode/opencode.json" ] && [ ! -f "$OPENCODE_CONFIG_DIR/opencode.json" ]; then
+    echo "✓ Copying host OpenCode config to persistent directory"
+    cp "$HOST_HOME/.config/opencode/opencode.json" "$OPENCODE_CONFIG_DIR/opencode.json"
 fi
 
 # Log information about persistent Claude home directory
@@ -357,6 +397,26 @@ else
     CLAUDE_MOUNT="$CLAUDE_HOME_DIR"
 fi
 
+# Build OpenCode mount args (empty unless launching with --tool opencode).
+OPENCODE_MOUNT_ARGS=""
+if [ "$CLAUDE_TOOL_SELECTION" = "opencode" ]; then
+    if [ "${SHARE_NATIVE_OPENCODE:-false}" = "true" ] && [ -n "$HOST_HOME" ]; then
+        if [ -d "$HOST_HOME/.config/opencode" ] || [ -d "$HOST_HOME/.local/share/opencode" ]; then
+            echo "✓ Sharing host's OpenCode config + auth (~/.config/opencode, ~/.local/share/opencode)"
+            mkdir -p "$HOST_HOME/.config/opencode" "$HOST_HOME/.local/share/opencode"
+            OPENCODE_CFG_MOUNT="$HOST_HOME/.config/opencode"
+            OPENCODE_DAT_MOUNT="$HOST_HOME/.local/share/opencode"
+        else
+            OPENCODE_CFG_MOUNT="$OPENCODE_CONFIG_DIR"
+            OPENCODE_DAT_MOUNT="$OPENCODE_DATA_DIR"
+        fi
+    else
+        OPENCODE_CFG_MOUNT="$OPENCODE_CONFIG_DIR"
+        OPENCODE_DAT_MOUNT="$OPENCODE_DATA_DIR"
+    fi
+    OPENCODE_MOUNT_ARGS="-v $OPENCODE_CFG_MOUNT:/home/claude-user/.config/opencode:rw -v $OPENCODE_DAT_MOUNT:/home/claude-user/.local/share/opencode:rw"
+fi
+
 # Compute host project key for session linking (only used in shared mode)
 # Pass git credentials to container if available
 GIT_CRED_ARGS=""
@@ -378,9 +438,11 @@ echo "Starting Claude Code in Docker..."
     -v "$CURRENT_DIR:${WORKSPACE_PATH}" \
     -v "${CLAUDE_MOUNT}:/home/claude-user/.claude:rw" \
     -v "$SSH_DIR:/home/claude-user/.ssh:rw" \
+    $OPENCODE_MOUNT_ARGS \
     $MOUNT_ARGS \
     $ENV_ARGS \
     -e CLAUDE_CONTINUE_FLAG="$CONTINUE_FLAG" \
+    -e CLAUDE_TOOL="$CLAUDE_TOOL_SELECTION" \
     $GIT_CRED_ARGS \
     $HOST_PROJECT_KEY_ARG \
     --workdir "${WORKSPACE_PATH}" \

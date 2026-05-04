@@ -64,8 +64,10 @@ RUN npx playwright install --with-deps chromium
 # Ensure npm global bin is in PATH
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Create directories for configuration
-RUN mkdir -p /app/.claude /home/claude-user/.claude
+# Create directories for configuration (Claude + OpenCode)
+RUN mkdir -p /app/.claude /home/claude-user/.claude \
+    /home/claude-user/.config/opencode \
+    /home/claude-user/.local/share/opencode
 
 # Copy startup and statusline scripts
 COPY src/startup.sh /app/
@@ -89,8 +91,11 @@ COPY .claude.json /tmp/.claude.json
 COPY mcp-servers.txt mcp-servers-dotnet.txt /app/
 COPY install-mcp-servers.sh /app/
 
+# Copy OpenCode config template (used when CLAUDE_TOOL=opencode)
+COPY opencode.json /app/opencode.json
+
 # Fix Windows CRLF line endings and set executable bits on all shell scripts/text files
-RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/mcp-servers-dotnet.txt /app/.env && \
+RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/mcp-servers-dotnet.txt /app/.env /app/opencode.json && \
     chmod +x /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh
 
 # Move auth files to proper location before switching user
@@ -118,8 +123,17 @@ RUN if [ -n "$CC_VERSION" ]; then \
 # Note: Will be installed for claude-user after user creation
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Add claude-user's local bin and native Claude installer path to PATH
-ENV PATH="/home/claude-user/.claude/local/bin:/home/claude-user/.local/bin:/home/claude-user/.dotnet/tools:${PATH}"
+# Optionally install OpenCode (anomalyco/opencode). Lands in /home/claude-user/.opencode/bin/opencode.
+ARG ENABLE_OPENCODE="true"
+RUN if [ "$ENABLE_OPENCODE" = "true" ]; then \
+        echo "Installing OpenCode..." && \
+        curl -fsSL https://opencode.ai/install | bash; \
+    else \
+        echo "Skipping OpenCode install (ENABLE_OPENCODE not set)"; \
+    fi
+
+# Add claude-user's local bin and native Claude/OpenCode installer paths to PATH
+ENV PATH="/home/claude-user/.claude/local/bin:/home/claude-user/.opencode/bin:/home/claude-user/.local/bin:/home/claude-user/.dotnet/tools:${PATH}"
 
 # Install .NET MCP tools if enabled and dotnet SDK is available
 ARG ENABLE_DOTNET_MCP="false"

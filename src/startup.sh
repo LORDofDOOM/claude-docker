@@ -22,13 +22,28 @@ else
     echo "WARNING: No .env file found in image."
 fi
 
-# Check for existing authentication
-if [ -f "$HOME/.claude/.credentials.json" ]; then
-    echo "Found existing Claude authentication"
-else
-    echo "No existing authentication found - you will need to log in"
-    echo "Your login will be saved for future sessions"
-fi
+CLAUDE_TOOL="${CLAUDE_TOOL:-claude}"
+
+# Check for existing authentication (per-tool)
+case "$CLAUDE_TOOL" in
+    opencode)
+        if [ -f "$HOME/.local/share/opencode/auth.json" ]; then
+            echo "Found existing OpenCode authentication"
+        else
+            echo "No existing OpenCode authentication found"
+            echo "On first run, opencode will prompt you to add a provider via /connect"
+            echo "Credentials are persisted to ~/.local/share/opencode/auth.json"
+        fi
+        ;;
+    *)
+        if [ -f "$HOME/.claude/.credentials.json" ]; then
+            echo "Found existing Claude authentication"
+        else
+            echo "No existing authentication found - you will need to log in"
+            echo "Your login will be saved for future sessions"
+        fi
+        ;;
+esac
 
 # Handle CLAUDE.md template
 if [ ! -f "$HOME/.claude/CLAUDE.md" ]; then
@@ -46,6 +61,15 @@ else
     echo "  This maps to your host persistent claude-home/CLAUDE.md"
     echo "  Default host path: ~/.claude-docker/claude-home/CLAUDE.md"
     echo "  To reset to template, delete this file and restart"
+fi
+
+# Seed OpenCode config from baked-in template if missing
+if [ "$CLAUDE_TOOL" = "opencode" ]; then
+    mkdir -p "$HOME/.config/opencode" "$HOME/.local/share/opencode"
+    if [ ! -f "$HOME/.config/opencode/opencode.json" ] && [ -f "/app/opencode.json" ]; then
+        echo "✓ Seeding ~/.config/opencode/opencode.json from template"
+        cp /app/opencode.json "$HOME/.config/opencode/opencode.json"
+    fi
 fi
 
 # Verify Telegram MCP configuration
@@ -168,6 +192,16 @@ w['hasTrustDialogAccepted'] = True
 with open(f, 'w') as fh: json.dump(d, fh)
 " "$WORK_DIR" 2>/dev/null || true
 
-# Start Claude Code with permissions bypass
-echo "Starting Claude Code..."
-exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
+# Start the selected coding agent
+case "$CLAUDE_TOOL" in
+    opencode)
+        echo "Starting OpenCode..."
+        # opencode TUI has no --dangerously-skip-permissions flag; bypass is provided
+        # via "permission": "allow" in opencode.json (seeded above).
+        exec opencode $CLAUDE_CONTINUE_FLAG "$@"
+        ;;
+    *)
+        echo "Starting Claude Code..."
+        exec claude $CLAUDE_CONTINUE_FLAG --dangerously-skip-permissions "$@"
+        ;;
+esac
