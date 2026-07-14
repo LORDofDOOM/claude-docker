@@ -95,7 +95,7 @@ claude-docker --cc-version 2.0.64   # Install specific Claude Code version
 | `--memory` | Set container memory limit | `claude-docker --memory 8g` |
 | `--gpus` | Enable GPU access | `claude-docker --gpus all` |
 | `--cc-version` | Install specific Claude Code version (requires rebuild) | `claude-docker --rebuild --cc-version 2.0.64` |
-| `--tool` | Pick the runtime: `claude` (default) or `opencode` | `claude-docker --tool opencode` |
+| `--tool` | Pick the runtime: `claude` (default), `opencode`, or `codex` | `claude-docker --tool codex` |
 
 ### Automatic Rebuilds
 
@@ -218,6 +218,29 @@ SHARE_NATIVE_OPENCODE=false      # mirror the host's ~/.config/opencode and ~/.l
 - `true`: bind-mounts the host's `~/.config/opencode` and `~/.local/share/opencode` directly, so native and docker share auth + sessions.
 
 **Note on Anthropic auth:** OpenCode does **not** support Claude Pro/Max subscription auth — Anthropic explicitly prohibits it. Use an `ANTHROPIC_API_KEY` (or any of the 75+ other providers) via `opencode auth login`. If you want to use a Claude subscription, run `claude-docker` (default).
+
+#### Codex Runtime (sister command)
+
+The container can also run [Codex CLI](https://developers.openai.com/codex/cli) (openai/codex), with the same launch ergonomics: same Docker image, same MCP servers, same auto-rebuild. Two equivalent ways to start it:
+
+```bash
+codex-docker                  # sister command (preferred)
+claude-docker --tool codex    # equivalent
+```
+
+```bash
+ENABLE_CODEX=true             # default: true — image always includes the codex binary
+SHARE_NATIVE_CODEX=false      # mirror the host's ~/.codex into the container
+```
+
+**Defaults baked into the image:**
+- `approval_policy = "never"` and `sandbox_mode = "danger-full-access"` are set in the seeded `~/.codex/config.toml`, and Codex is launched with `--yolo` — together the equivalent of Claude's `--dangerously-skip-permissions`. Safe because the container is isolated.
+- The same MCP servers ship pre-configured (Serena, Context7, grep.app, Playwright, plus Telegram when creds are set) — translated into Codex's `[mcp_servers.*]` TOML schema. Context7's API key is sourced from the `CONTEXT7_API_KEY` env var via `env_http_headers`, and the Telegram block (with real credentials) is appended by `startup.sh` only when `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` are present.
+- `--continue` maps to `codex resume --last` (Codex has no `--continue` flag).
+
+**Credentials** are persisted exactly like Claude's — Codex keeps both `config.toml` and `auth.json` under a single `~/.codex` directory:
+- `false` (default): `~/.claude-docker/codex-home/` (host-isolated). On first launch, host's `~/.codex/auth.json` (if present) is copied in so an existing ChatGPT/API login carries over.
+- `true`: bind-mounts the host's `~/.codex` directly, so native and docker share auth + sessions.
 
 #### Native Windows statusline (opt-in)
 

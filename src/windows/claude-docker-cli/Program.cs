@@ -48,9 +48,9 @@ for (int i = 0; i < args.Length; i++)
     }
 }
 
-if (tool != "claude" && tool != "opencode")
+if (tool != "claude" && tool != "opencode" && tool != "codex")
 {
-    Error($"--tool must be 'claude' or 'opencode' (got: {tool})");
+    Error($"--tool must be 'claude', 'opencode' or 'codex' (got: {tool})");
     Environment.Exit(2);
     return;
 }
@@ -74,6 +74,7 @@ var claudeDockerDir = Environment.GetEnvironmentVariable("CLAUDE_DOCKER_HOME")
 var claudeHomeDir = Path.Combine(claudeDockerDir, "claude-home");
 var opencodeConfigDir = Path.Combine(claudeDockerDir, "opencode-config");
 var opencodeDataDir = Path.Combine(claudeDockerDir, "opencode-data");
+var codexHomeDir = Path.Combine(claudeDockerDir, "codex-home");
 var sshDir = Path.Combine(claudeDockerDir, "ssh");
 
 // ── Check container runtime ──────────────────────────────────────
@@ -154,9 +155,12 @@ if (string.IsNullOrEmpty(gitHash)) gitHash = "unknown";
 var opencodeEnv = envVars.TryGetValue("ENABLE_OPENCODE", out var oce)
     && oce.Equals("true", StringComparison.OrdinalIgnoreCase);
 var opencodeRequired = opencodeEnv || tool == "opencode";
+var codexEnv = envVars.TryGetValue("ENABLE_CODEX", out var cde)
+    && cde.Equals("true", StringComparison.OrdinalIgnoreCase);
+var codexRequired = codexEnv || tool == "codex";
 var dotnetEnv = envVars.TryGetValue("ENABLE_DOTNET_MCP", out var dne)
     && dne.Equals("true", StringComparison.OrdinalIgnoreCase);
-var currentHash = $"{gitHash}|opencode={opencodeRequired.ToString().ToLowerInvariant()}|dotnet={dotnetEnv.ToString().ToLowerInvariant()}";
+var currentHash = $"{gitHash}|opencode={opencodeRequired.ToString().ToLowerInvariant()}|codex={codexRequired.ToString().ToLowerInvariant()}|dotnet={dotnetEnv.ToString().ToLowerInvariant()}";
 
 if (!needRebuild)
 {
@@ -226,6 +230,14 @@ if (needRebuild)
         buildArgs.AddRange(["--build-arg", "ENABLE_OPENCODE=true"]);
     }
 
+    var envCodex = envVars.TryGetValue("ENABLE_CODEX", out var cx)
+        && cx.Equals("true", StringComparison.OrdinalIgnoreCase);
+    if (envCodex || tool == "codex")
+    {
+        Info("Building with Codex CLI runtime");
+        buildArgs.AddRange(["--build-arg", "ENABLE_CODEX=true"]);
+    }
+
     buildArgs.AddRange(["-t", "claude-docker:latest", projectRoot]);
 
     Console.WriteLine($"Running: {dockerCmd} {string.Join(' ', buildArgs)}");
@@ -248,6 +260,7 @@ if (needRebuild)
 Directory.CreateDirectory(claudeHomeDir);
 Directory.CreateDirectory(opencodeConfigDir);
 Directory.CreateDirectory(opencodeDataDir);
+Directory.CreateDirectory(codexHomeDir);
 Directory.CreateDirectory(sshDir);
 
 // Copy template .claude contents to persistent directory if empty
@@ -282,6 +295,15 @@ if (File.Exists(hostOpencodeCfg) && !File.Exists(persistOpencodeCfg))
 {
     Info("Copying host OpenCode config to persistent directory");
     File.Copy(hostOpencodeCfg, persistOpencodeCfg);
+}
+
+// Reuse host's Codex auth when the persistent copy is empty (~/.codex/auth.json).
+var hostCodexAuth = Path.Combine(hostHome, ".codex", "auth.json");
+var persistCodexAuth = Path.Combine(codexHomeDir, "auth.json");
+if (File.Exists(hostCodexAuth) && !File.Exists(persistCodexAuth))
+{
+    Info("Copying Codex auth.json from host to persistent directory");
+    File.Copy(hostCodexAuth, persistCodexAuth);
 }
 
 Console.WriteLine();
@@ -415,6 +437,28 @@ if (tool == "opencode")
     runArgs.AddRange(["-v", $"{opencodeDataMount}:/home/claude-user/.local/share/opencode:rw"]);
 }
 
+// Codex mount: only added when running with --tool codex.
+// Codex keeps config.toml AND auth.json under a single dir (~/.codex).
+if (tool == "codex")
+{
+    var shareNativeCodex = envVars.TryGetValue("SHARE_NATIVE_CODEX", out var snc)
+        && snc.Equals("true", StringComparison.OrdinalIgnoreCase);
+    var nativeCodexDir = Path.Combine(hostHome, ".codex");
+
+    string codexMount;
+    if (shareNativeCodex && Directory.Exists(nativeCodexDir))
+    {
+        Info("Sharing host's Codex config + auth (~/.codex)");
+        codexMount = nativeCodexDir;
+    }
+    else
+    {
+        codexMount = codexHomeDir;
+    }
+
+    runArgs.AddRange(["-v", $"{codexMount}:/home/claude-user/.codex:rw"]);
+}
+
 // Extra directory mounts (append :ro for read-only)
 if (envVars.TryGetValue("EXTRA_MOUNT_DIRS", out var extraDirs) && !string.IsNullOrEmpty(extraDirs))
 {
@@ -500,6 +544,11 @@ static string DefaultToolFromProcessName()
             && name.Contains("opencode", StringComparison.OrdinalIgnoreCase))
         {
             return "opencode";
+        }
+        if (!string.IsNullOrEmpty(name)
+            && name.Contains("codex", StringComparison.OrdinalIgnoreCase))
+        {
+            return "codex";
         }
     }
     catch { /* ignore */ }

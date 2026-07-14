@@ -35,6 +35,15 @@ case "$CLAUDE_TOOL" in
             echo "Credentials are persisted to ~/.local/share/opencode/auth.json"
         fi
         ;;
+    codex)
+        if [ -f "$HOME/.codex/auth.json" ]; then
+            echo "Found existing Codex authentication"
+        else
+            echo "No existing Codex authentication found"
+            echo "On first run, codex will prompt you to sign in with ChatGPT"
+            echo "Credentials are persisted to ~/.codex/auth.json"
+        fi
+        ;;
     *)
         if [ -f "$HOME/.claude/.credentials.json" ]; then
             echo "Found existing Claude authentication"
@@ -69,6 +78,27 @@ if [ "$CLAUDE_TOOL" = "opencode" ]; then
     if [ ! -f "$HOME/.config/opencode/opencode.json" ] && [ -f "/app/opencode.json" ]; then
         echo "✓ Seeding ~/.config/opencode/opencode.json from template"
         cp /app/opencode.json "$HOME/.config/opencode/opencode.json"
+    fi
+fi
+
+# Seed Codex config from baked-in template if missing. The template holds no
+# secrets; the telegram MCP server (which needs real credentials in its env) is
+# appended here only when both Telegram vars are present.
+if [ "$CLAUDE_TOOL" = "codex" ]; then
+    mkdir -p "$HOME/.codex"
+    if [ ! -f "$HOME/.codex/config.toml" ] && [ -f "/app/codex-config.toml" ]; then
+        echo "✓ Seeding ~/.codex/config.toml from template"
+        cp /app/codex-config.toml "$HOME/.codex/config.toml"
+        if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "✓ Adding telegram MCP server to ~/.codex/config.toml"
+            cat >> "$HOME/.codex/config.toml" <<EOF
+
+# Telegram — notifications / ask_user (stdio; appended by startup.sh)
+[mcp_servers.telegram]
+command = "mcptelegram"
+env = { TELEGRAM_TOKEN = "${TELEGRAM_BOT_TOKEN}", CHAT_ID = "${TELEGRAM_CHAT_ID}" }
+EOF
+        fi
     fi
 fi
 
@@ -199,6 +229,17 @@ case "$CLAUDE_TOOL" in
         # opencode TUI has no --dangerously-skip-permissions flag; bypass is provided
         # via "permission": "allow" in opencode.json (seeded above).
         exec opencode $CLAUDE_CONTINUE_FLAG "$@"
+        ;;
+    codex)
+        echo "Starting Codex CLI..."
+        # --yolo = full access (skip all approvals + sandbox), the Codex equivalent
+        # of --dangerously-skip-permissions. config.toml also sets this as the default.
+        # Codex has no --continue flag; the resume subcommand reopens a session.
+        if [ -n "$CLAUDE_CONTINUE_FLAG" ]; then
+            exec codex resume --last "$@"
+        else
+            exec codex --yolo "$@"
+        fi
         ;;
     *)
         echo "Starting Claude Code..."

@@ -97,6 +97,7 @@ fi
 # Add aliases to the detected shell RC file
 ALIAS_LINE="alias claude-docker='$PROJECT_ROOT/src/claude-docker.sh'"
 OPENCODE_ALIAS_LINE="alias opencode-docker='$PROJECT_ROOT/src/opencode-docker.sh'"
+CODEX_ALIAS_LINE="alias codex-docker='$PROJECT_ROOT/src/codex-docker.sh'"
 if [ ! -f "$TARGET_RC_FILE" ]; then
     touch "$TARGET_RC_FILE"
     echo "✓ Created shell config file at $TARGET_RC_FILE"
@@ -119,6 +120,14 @@ else
     echo "✓ OpenCode-docker alias already exists in $TARGET_RC_NAME"
 fi
 
+if ! grep -Fq "alias codex-docker=" "$TARGET_RC_FILE"; then
+    echo "# Codex Docker alias (sister of claude-docker)" >> "$TARGET_RC_FILE"
+    echo "$CODEX_ALIAS_LINE" >> "$TARGET_RC_FILE"
+    echo "✓ Added 'codex-docker' alias to $TARGET_RC_NAME"
+else
+    echo "✓ Codex-docker alias already exists in $TARGET_RC_NAME"
+fi
+
 # Fix ownership when run with sudo so the invoking user can modify generated files.
 if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
     chown -R "$TARGET_UID:$TARGET_GID" "$CLAUDE_DOCKER_DIR"
@@ -131,6 +140,7 @@ fi
 # Make scripts executable
 chmod +x "$PROJECT_ROOT/src/claude-docker.sh"
 chmod +x "$PROJECT_ROOT/src/opencode-docker.sh"
+chmod +x "$PROJECT_ROOT/src/codex-docker.sh"
 chmod +x "$PROJECT_ROOT/src/startup.sh"
 
 # Check for GPU support

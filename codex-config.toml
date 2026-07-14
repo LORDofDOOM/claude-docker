@@ -1,0 +1,35 @@
+# Codex CLI configuration template (used when CLAUDE_TOOL=codex).
+# Copied to ~/.codex/config.toml on first launch when that file is missing.
+# Reference: https://developers.openai.com/codex/config-reference
+#
+# The telegram MCP server is appended by src/startup.sh at launch when the
+# TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID credentials are present, so no secrets
+# live in this template.
+
+# Fully autonomous: never pause for approval, full filesystem + network access.
+# Container-isolated — mirrors Claude's --dangerously-skip-permissions and
+# OpenCode's "permission": "allow". Also enforced by `codex --yolo` at launch.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+# Serena — coding agent toolkit (stdio, launched via uvx)
+[mcp_servers.serena]
+command = "bash"
+args = ["-c", "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/oraios/serena serena-agent; done; echo 'uvx not found' >&2; exit 1"]
+startup_timeout_sec = 60
+
+# Context7 — up-to-date library documentation (streamable HTTP).
+# The API key header value is sourced from the CONTEXT7_API_KEY env var at
+# runtime, so it never has to be written into this file.
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+env_http_headers = { CONTEXT7_API_KEY = "CONTEXT7_API_KEY" }
+
+# Grep — GitHub code search (streamable HTTP, no auth)
+[mcp_servers.grep]
+url = "https://mcp.grep.app"
+
+# Playwright — browser automation (stdio, runs headless inside the container)
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp", "--headless"]

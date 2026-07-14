@@ -76,12 +76,13 @@ fi
 CLAUDE_HOME_DIR="$CLAUDE_DOCKER_DIR/claude-home"
 OPENCODE_CONFIG_DIR="$CLAUDE_DOCKER_DIR/opencode-config"
 OPENCODE_DATA_DIR="$CLAUDE_DOCKER_DIR/opencode-data"
+CODEX_HOME_DIR="$CLAUDE_DOCKER_DIR/codex-home"
 SSH_DIR="$CLAUDE_DOCKER_DIR/ssh"
 
 case "$CLAUDE_TOOL_SELECTION" in
-    claude|opencode) ;;
+    claude|opencode|codex) ;;
     *)
-        echo "Error: --tool must be 'claude' or 'opencode' (got: $CLAUDE_TOOL_SELECTION)"
+        echo "Error: --tool must be 'claude', 'opencode' or 'codex' (got: $CLAUDE_TOOL_SELECTION)"
         exit 2
         ;;
 esac
@@ -132,7 +133,11 @@ OPENCODE_REQUIRED=false
 if [ "${ENABLE_OPENCODE:-false}" = "true" ] || [ "$CLAUDE_TOOL_SELECTION" = "opencode" ]; then
     OPENCODE_REQUIRED=true
 fi
-CURRENT_HASH="${GIT_HASH}|opencode=${OPENCODE_REQUIRED}|dotnet=${ENABLE_DOTNET_MCP:-false}"
+CODEX_REQUIRED=false
+if [ "${ENABLE_CODEX:-false}" = "true" ] || [ "$CLAUDE_TOOL_SELECTION" = "codex" ]; then
+    CODEX_REQUIRED=true
+fi
+CURRENT_HASH="${GIT_HASH}|opencode=${OPENCODE_REQUIRED}|codex=${CODEX_REQUIRED}|dotnet=${ENABLE_DOTNET_MCP:-false}"
 
 if [ "$NEED_REBUILD" = false ]; then
     PREVIOUS_HASH=$(cat "$BUILD_HASH_FILE" 2>/dev/null || echo "")
@@ -179,6 +184,11 @@ if [ "$NEED_REBUILD" = true ]; then
         echo "✓ Building with OpenCode runtime"
         BUILD_ARGS="$BUILD_ARGS --build-arg ENABLE_OPENCODE=true"
     fi
+    # Always build Codex if env opt-in OR if the user is launching --tool codex.
+    if [ "${ENABLE_CODEX:-false}" = "true" ] || [ "$CLAUDE_TOOL_SELECTION" = "codex" ]; then
+        echo "✓ Building with Codex CLI runtime"
+        BUILD_ARGS="$BUILD_ARGS --build-arg ENABLE_CODEX=true"
+    fi
 
     eval "'$DOCKER' build $NO_CACHE $BUILD_ARGS -t claude-docker:latest \"$PROJECT_ROOT\""
     
@@ -189,10 +199,11 @@ if [ "$NEED_REBUILD" = true ]; then
     echo "$CURRENT_HASH" > "$BUILD_HASH_FILE"
 fi
 
-# Ensure persistence directories exist (claude + opencode + ssh)
+# Ensure persistence directories exist (claude + opencode + codex + ssh)
 mkdir -p "$CLAUDE_HOME_DIR"
 mkdir -p "$OPENCODE_CONFIG_DIR"
 mkdir -p "$OPENCODE_DATA_DIR"
+mkdir -p "$CODEX_HOME_DIR"
 mkdir -p "$SSH_DIR"
 
 # Copy authentication files to persistent claude-home if they don't exist
@@ -210,6 +221,13 @@ fi
 if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.config/opencode/opencode.json" ] && [ ! -f "$OPENCODE_CONFIG_DIR/opencode.json" ]; then
     echo "✓ Copying host OpenCode config to persistent directory"
     cp "$HOST_HOME/.config/opencode/opencode.json" "$OPENCODE_CONFIG_DIR/opencode.json"
+fi
+
+# Reuse host's Codex auth if present and the persistent copy is empty.
+# Mirrors the Claude/OpenCode credential bootstrap above (~/.codex/auth.json).
+if [ -n "$HOST_HOME" ] && [ -f "$HOST_HOME/.codex/auth.json" ] && [ ! -f "$CODEX_HOME_DIR/auth.json" ]; then
+    echo "✓ Copying Codex auth.json from host to persistent directory"
+    cp "$HOST_HOME/.codex/auth.json" "$CODEX_HOME_DIR/auth.json"
 fi
 
 # Log information about persistent Claude home directory
@@ -417,6 +435,19 @@ if [ "$CLAUDE_TOOL_SELECTION" = "opencode" ]; then
     OPENCODE_MOUNT_ARGS="-v $OPENCODE_CFG_MOUNT:/home/claude-user/.config/opencode:rw -v $OPENCODE_DAT_MOUNT:/home/claude-user/.local/share/opencode:rw"
 fi
 
+# Build Codex mount args (empty unless launching with --tool codex).
+# Codex keeps config.toml AND auth.json under a single dir (~/.codex).
+CODEX_MOUNT_ARGS=""
+if [ "$CLAUDE_TOOL_SELECTION" = "codex" ]; then
+    if [ "${SHARE_NATIVE_CODEX:-false}" = "true" ] && [ -n "$HOST_HOME" ] && [ -d "$HOST_HOME/.codex" ]; then
+        echo "✓ Sharing host's Codex config + auth (~/.codex)"
+        CODEX_MOUNT="$HOST_HOME/.codex"
+    else
+        CODEX_MOUNT="$CODEX_HOME_DIR"
+    fi
+    CODEX_MOUNT_ARGS="-v $CODEX_MOUNT:/home/claude-user/.codex:rw"
+fi
+
 # Compute host project key for session linking (only used in shared mode)
 # Pass git credentials to container if available
 GIT_CRED_ARGS=""
@@ -439,6 +470,7 @@ echo "Starting Claude Code in Docker..."
     -v "${CLAUDE_MOUNT}:/home/claude-user/.claude:rw" \
     -v "$SSH_DIR:/home/claude-user/.ssh:rw" \
     $OPENCODE_MOUNT_ARGS \
+    $CODEX_MOUNT_ARGS \
     $MOUNT_ARGS \
     $ENV_ARGS \
     -e CLAUDE_CONTINUE_FLAG="$CONTINUE_FLAG" \

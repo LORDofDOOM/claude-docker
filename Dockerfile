@@ -64,10 +64,11 @@ RUN npx playwright install --with-deps chromium
 # Ensure npm global bin is in PATH
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Create directories for configuration (Claude + OpenCode)
+# Create directories for configuration (Claude + OpenCode + Codex)
 RUN mkdir -p /app/.claude /home/claude-user/.claude \
     /home/claude-user/.config/opencode \
-    /home/claude-user/.local/share/opencode
+    /home/claude-user/.local/share/opencode \
+    /home/claude-user/.codex
 
 # Copy startup and statusline scripts
 COPY src/startup.sh /app/
@@ -94,8 +95,11 @@ COPY install-mcp-servers.sh /app/
 # Copy OpenCode config template (used when CLAUDE_TOOL=opencode)
 COPY opencode.json /app/opencode.json
 
+# Copy Codex config template (used when CLAUDE_TOOL=codex)
+COPY codex-config.toml /app/codex-config.toml
+
 # Fix Windows CRLF line endings and set executable bits on all shell scripts/text files
-RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/mcp-servers-dotnet.txt /app/.env /app/opencode.json && \
+RUN sed -i 's/\r$//' /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh /app/mcp-servers.txt /app/mcp-servers-dotnet.txt /app/.env /app/opencode.json /app/codex-config.toml && \
     chmod +x /app/startup.sh /app/statusline.sh /app/install-mcp-servers.sh
 
 # Move auth files to proper location before switching user
@@ -130,6 +134,15 @@ RUN if [ "$ENABLE_OPENCODE" = "true" ]; then \
         curl -fsSL https://opencode.ai/install | bash; \
     else \
         echo "Skipping OpenCode install (ENABLE_OPENCODE not set)"; \
+    fi
+
+# Optionally install Codex CLI (openai/codex). Lands in /usr/local/bin/codex.
+ARG ENABLE_CODEX="true"
+RUN if [ "$ENABLE_CODEX" = "true" ]; then \
+        echo "Installing Codex CLI..." && \
+        npm install -g @openai/codex; \
+    else \
+        echo "Skipping Codex install (ENABLE_CODEX not set)"; \
     fi
 
 # Add claude-user's local bin and native Claude/OpenCode installer paths to PATH
