@@ -81,25 +81,41 @@ if [ "$CLAUDE_TOOL" = "opencode" ]; then
     fi
 fi
 
-# Seed Codex config from baked-in template if missing. The template holds no
-# secrets; the telegram MCP server (which needs real credentials in its env) is
+# Seed Codex MCP servers into ~/.codex/config.toml. The template holds no
+# secrets; the telegram server (which needs real credentials in its env) is
 # appended here only when both Telegram vars are present.
-if [ "$CLAUDE_TOOL" = "codex" ]; then
+#
+# We (re)seed when the config is missing OR has no [mcp_servers.*] tables — not
+# just when the file is absent. Codex writes its own config.toml on first run
+# (model/settings), and a plain "seed only if missing" check would then leave
+# the MCP block absent forever, so no servers would ever load.
+if [ "$CLAUDE_TOOL" = "codex" ] && [ -f "/app/codex-config.toml" ]; then
     mkdir -p "$HOME/.codex"
-    if [ ! -f "$HOME/.codex/config.toml" ] && [ -f "/app/codex-config.toml" ]; then
+    CODEX_CFG="$HOME/.codex/config.toml"
+    if [ ! -f "$CODEX_CFG" ]; then
         echo "✓ Seeding ~/.codex/config.toml from template"
-        cp /app/codex-config.toml "$HOME/.codex/config.toml"
-        if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
-            echo "✓ Adding telegram MCP server to ~/.codex/config.toml"
-            cat >> "$HOME/.codex/config.toml" <<EOF
+        cp /app/codex-config.toml "$CODEX_CFG"
+    elif ! grep -q '^\[mcp_servers\.' "$CODEX_CFG"; then
+        echo "✓ Existing ~/.codex/config.toml has no MCP servers — appending them"
+        # Append only the [mcp_servers.*] tables (skip the top-level policy keys
+        # to avoid duplicate-key TOML errors with the user's existing config).
+        printf '\n' >> "$CODEX_CFG"
+        sed -n '/^\[mcp_servers\./,$p' /app/codex-config.toml >> "$CODEX_CFG"
+    fi
+    # Append telegram MCP server with real creds when available and not already present.
+    if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ] \
+       && ! grep -q '^\[mcp_servers\.telegram\]' "$CODEX_CFG"; then
+        echo "✓ Adding telegram MCP server to ~/.codex/config.toml"
+        cat >> "$CODEX_CFG" <<EOF
 
 # Telegram — notifications / ask_user (stdio; appended by startup.sh)
 [mcp_servers.telegram]
 command = "mcptelegram"
 env = { TELEGRAM_TOKEN = "${TELEGRAM_BOT_TOKEN}", CHAT_ID = "${TELEGRAM_CHAT_ID}" }
 EOF
-        fi
     fi
+    # Surface how many MCP servers Codex will see (diagnostic; helps confirm seeding worked).
+    echo "  Codex MCP servers configured: $(grep -c '^\[mcp_servers\.' "$CODEX_CFG" 2>/dev/null || echo 0)"
 fi
 
 # Verify Telegram MCP configuration
