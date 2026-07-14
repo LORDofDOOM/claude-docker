@@ -110,10 +110,10 @@ echo.
 echo [2/3] OpenCode (native, npm i -g opencode-ai)...
 where npm >nul 2>nul
 if errorlevel 1 (
-    echo [!] npm not found - skipping native OpenCode. Install Node.js to enable it.
+    echo [!] npm not found - skipping native OpenCode; install Node.js to enable it.
 ) else (
     call npm install -g opencode-ai
-    if errorlevel 1 echo [!] OpenCode native install/update failed (skipping).
+    if errorlevel 1 echo [!] OpenCode native install/update failed - skipping.
 )
 
 echo.
