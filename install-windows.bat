@@ -121,6 +121,17 @@ echo [3/3] Codex CLI (native, chatgpt.com/codex/install.ps1)...
 powershell -ExecutionPolicy Bypass -NoProfile -Command "$env:CODEX_NON_INTERACTIVE='1'; irm https://chatgpt.com/codex/install.ps1 | iex"
 if errorlevel 1 echo [!] Codex native install/update failed (skipping).
 
+REM ── Global Claude Code attribution settings ───────────────────────
+REM Turns off all attribution surfaces in %%USERPROFILE%%\.claude\settings.json,
+REM including the "Claude-Session:" trailer, which needs its own key
+REM (attribution.sessionUrl) - an empty attribution.commit does not cover it.
+REM Existing keys are merged, not replaced. Set DISABLE_AI_ATTRIBUTION=false
+REM before running to skip this step.
+echo.
+echo Applying global Claude Code attribution settings...
+powershell -ExecutionPolicy Bypass -NoProfile -File "%~dp0src\apply-attribution.ps1"
+if errorlevel 1 echo [!] Could not update %%USERPROFILE%%\.claude\settings.json - skipping.
+
 echo.
 echo ============================================
 echo  Installation complete!

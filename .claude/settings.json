@@ -5,6 +5,11 @@
     "MCP_TIMEOUT_MS": "60000"
   },
   "includeCoAuthoredBy": false,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Read(~/.zshrc)",

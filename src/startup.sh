@@ -205,10 +205,13 @@ try:
     with open(f) as fh: d = json.load(fh)
 except: d = {}
 
-# Disable AI attribution unless opted out
+# Disable AI attribution unless opted out.
+# sessionUrl is a separate gate from commit/pr: with an empty commit footer,
+# Claude Code still emits 'Claude-Session: <url>' as the *only* trailer
+# (anthropics/claude-code#77830), so all three keys are needed.
 if os.environ.get('DISABLE_AI_ATTRIBUTION', 'true') != 'false':
     d['includeCoAuthoredBy'] = False
-    d['attribution'] = {'commit': '', 'pr': ''}
+    d['attribution'] = {'commit': '', 'pr': '', 'sessionUrl': False}
 
 # Enable enhanced status line unless opted out
 if os.environ.get('ENABLE_STATUSLINE', 'true') != 'false':

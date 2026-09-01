@@ -242,6 +242,42 @@ SHARE_NATIVE_CODEX=false      # mirror the host's ~/.codex into the container
 - `false` (default): `~/.claude-docker/codex-home/` (host-isolated). On first launch, host's `~/.codex/auth.json` (if present) is copied in so an existing ChatGPT/API login carries over.
 - `true`: bind-mounts the host's `~/.codex` directly, so native and docker share auth + sessions.
 
+#### AI commit attribution
+
+Both installers turn Claude's commit/PR attribution **off by default**, so you don't have to edit config on every machine:
+
+| Surface | Key | Trailer it produces |
+|---|---|---|
+| Legacy co-author | `includeCoAuthoredBy: false` | `Co-Authored-By: Claude <noreply@anthropic.com>` |
+| Commit footer | `attribution.commit: ""` | `Generated with Claude Code` |
+| PR body footer | `attribution.pr: ""` | same, in the PR description |
+| Session link | `attribution.sessionUrl: false` | `Claude-Session: https://claude.ai/code/session_...` |
+
+`sessionUrl` is the one that bites people. It is a **separate gate** — with an empty `attribution.commit`, Claude Code emits the session URL as the *only* trailer rather than none, because it builds the text as `commit ? commit + "\nClaude-Session: " + url : "Claude-Session: " + url`. It appears in cloud / Remote Control sessions. See [anthropics/claude-code#77830](https://github.com/anthropics/claude-code/issues/77830), closed as working-as-designed with `sessionUrl` as the documented switch.
+
+- **Docker:** applied by `src/startup.sh` on every container start.
+- **Native Windows:** applied by `src/apply-attribution.ps1`, invoked from `install-windows.bat`. It merges into your existing `settings.json` (all other keys preserved), writes a `settings.json.bak` first, and refuses to touch the file if it isn't valid JSON. Re-running is safe.
+
+Set `DISABLE_AI_ATTRIBUTION=false` in `.env` (Docker) or in the environment (Windows) to keep Claude's default attribution. The env var `CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION=1` hits the same gate as `sessionUrl` if you prefer not to persist a setting.
+
+#### AI commit attribution
+
+Both installers turn Claude's commit/PR attribution **off by default**, so you don't have to edit config on every machine:
+
+| Surface | Key | Trailer it produces |
+|---|---|---|
+| Legacy co-author | `includeCoAuthoredBy: false` | `Co-Authored-By: Claude <noreply@anthropic.com>` |
+| Commit footer | `attribution.commit: ""` | `Generated with Claude Code` |
+| PR body footer | `attribution.pr: ""` | same, in the PR description |
+| Session link | `attribution.sessionUrl: false` | `Claude-Session: https://claude.ai/code/session_...` |
+
+`sessionUrl` is the one that bites people. It is a **separate gate** — with an empty `attribution.commit`, Claude Code emits the session URL as the *only* trailer rather than none, because it builds the text as `commit ? commit + "\nClaude-Session: " + url : "Claude-Session: " + url`. It shows up in cloud / Remote Control sessions. See [anthropics/claude-code#77830](https://github.com/anthropics/claude-code/issues/77830), closed as working-as-designed with `sessionUrl` as the documented switch.
+
+- **Docker:** applied by `src/startup.sh` on every container start.
+- **Native Windows:** applied by `src/apply-attribution.ps1`, invoked from `install-windows.bat`. It merges into your existing `settings.json` (all other keys preserved), writes a `settings.json.bak` first, and refuses to touch the file if it isn't valid JSON. Re-running is safe.
+
+Set `DISABLE_AI_ATTRIBUTION=false` in `.env` (Docker) or in the environment (Windows) to keep Claude's default attribution. The env var `CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION=1` hits the same gate as `sessionUrl` if you prefer not to persist a setting.
+
 #### Native Windows statusline (opt-in)
 
 The same enhanced statusline used inside the Docker container (model, cost, context bar, git branch, 5h/7d plan usage) can be enabled for **native Windows Claude Code** via a PowerShell port at `src/statusline.ps1`.
